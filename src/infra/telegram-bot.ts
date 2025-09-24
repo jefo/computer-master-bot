@@ -1,4 +1,4 @@
-import { TelegramClient } from "packages/telegram-client"; // Corrected import path
+import { TelegramClient } from "packages/telegram-client";
 import {
 	getConversationState,
 	setConversationState,
@@ -11,19 +11,9 @@ import {
 	ReplyKeyboardMarkup,
 } from "packages/telegram-client/telegram-types";
 import { showPricesUseCase } from "@src/app/show-prices.use-case";
+import { MessageBuilder } from "./message-builder"; // New import
 
 const BOT_TOKEN = process.env.BOT_TOKEN || "YOUR_BOT_TOKEN_HERE";
-
-/**
- * Экранирует специальные символы для Telegram MarkdownV2.
- * @param text Текст для экранирования.
- */
-const escapeMarkdownV2 = (text: string | number): string => {
-	const textStr = String(text);
-	// Список зарезервированных символов в MarkdownV2
-	const reservedChars = /[_*\[\]()~`>#+\-=|{}.!\\]/g; // FIXED: Added backslash to be escaped
-	return textStr.replace(reservedChars, "\\$&");
-};
 
 // --- Emergency Problems (Hardcoded for now) ---
 const emergencyProblems = [
@@ -80,10 +70,18 @@ export const runBot = async () => {
 					if (messageText === "/start") {
 						clearConversationState(chatId); // Сбрасываем состояние при /start
 						const masterStatus = getMasterStatus();
-						const welcomeMessage = escapeMarkdownV2(
-							`Привет 👋!\nЯ личный робот-ассистент Мастера Евгения.\nСтатус мастера: *${masterStatus}*\n
-							\nГотов помочь с  🩺 диагностикой, 🔧 ремонтом и ⚙ настройкой вашего ПК и интернета (сеть/WiFi).`,
-						);
+
+						const welcomeMessageBuilder = new MessageBuilder()
+							.addText("Привет! Я ваш личный помощник компьютерного мастера.")
+							.newLine()
+							.addRawText(
+								`Статус мастера: *${MessageBuilder.escapeMarkdownV2(masterStatus)}*`,
+							)
+							.newLine()
+							.addText(
+								"Готов помочь с диагностикой, ремонтом и настройкой вашего ПК.",
+							);
+
 						const replyKeyboard: ReplyKeyboardMarkup = {
 							keyboard: [
 								[{ text: "Услуги и Цены" }],
@@ -97,7 +95,7 @@ export const runBot = async () => {
 
 						await client.sendMessage({
 							chat_id: chatId,
-							text: welcomeMessage,
+							text: welcomeMessageBuilder.build(),
 							parse_mode: "MarkdownV2",
 							reply_markup: replyKeyboard, // Only ReplyKeyboard here
 						});
@@ -107,7 +105,7 @@ export const runBot = async () => {
 							inline_keyboard: [
 								[
 									{
-										text: "🚨 Экстренная помощь",
+										text: "Экстренная помощь",
 										callback_data: "emergency_help",
 									},
 								],
@@ -115,8 +113,8 @@ export const runBot = async () => {
 						};
 						await client.sendMessage({
 							chat_id: chatId,
-							text: escapeMarkdownV2(
-								"Для экстренной помощи, нажмите кнопку ниже:",
+							text: MessageBuilder.escapeMarkdownV2(
+								"Если вам нужна экстренная помощь, нажмите кнопку ниже:",
 							),
 							parse_mode: "MarkdownV2",
 							reply_markup: emergencyInlineKeyboard,
@@ -126,18 +124,26 @@ export const runBot = async () => {
 						messageText === "/prices"
 					) {
 						const priceList = await showPricesUseCase();
-						const formattedPriceList = priceList
-							.map((item) => {
-								const name = item.name;
-								const price = item.price;
-								const description = item.description;
-								return `*${name}* - ${price} руб\n_${description}_`; // Removed manual escaping
-							})
-							.join("\n\n");
+
+						const priceListBuilder = new MessageBuilder()
+							.addTitle("Наши услуги:")
+							.newLine();
+
+						priceList.forEach((item) => {
+							priceListBuilder
+								.addRawText(
+									`*${MessageBuilder.escapeMarkdownV2(item.name)}* \- ${MessageBuilder.escapeMarkdownV2(item.price)} руб`,
+								)
+								.newLine()
+								.addRawText(
+									`_${MessageBuilder.escapeMarkdownV2(item.description)}_`,
+								)
+								.newLine(2); // Two new lines for spacing between items
+						});
 
 						await client.sendMessage({
 							chat_id: chatId,
-							text: escapeMarkdownV2(`*Наши услуги:*\n\n${formattedPriceList}`), // Applied escapeMarkdownV2 to the whole text
+							text: priceListBuilder.build(),
 							parse_mode: "MarkdownV2",
 						});
 					} else if (
@@ -164,7 +170,7 @@ export const runBot = async () => {
 
 						await client.sendMessage({
 							chat_id: chatId,
-							text: escapeMarkdownV2(
+							text: MessageBuilder.escapeMarkdownV2(
 								"Отлично! Чтобы записаться на прием, пожалуйста, выберите интересующую вас услугу:",
 							),
 							parse_mode: "MarkdownV2",
@@ -174,7 +180,7 @@ export const runBot = async () => {
 						// Обработка неизвестных текстовых сообщений
 						await client.sendMessage({
 							chat_id: chatId,
-							text: escapeMarkdownV2(
+							text: MessageBuilder.escapeMarkdownV2(
 								"Извините, я не понял вашу команду.\nПожалуйста, воспользуйтесь кнопками меню или отправьте /start, чтобы увидеть доступные опции.",
 							),
 							parse_mode: "MarkdownV2",
@@ -192,7 +198,7 @@ export const runBot = async () => {
 						await client.editMessageText({
 							chat_id: chatId,
 							message_id: messageId,
-							text: escapeMarkdownV2(
+							text: MessageBuilder.escapeMarkdownV2(
 								"Запись отменена. Вы можете начать заново, отправив /start.",
 							),
 							parse_mode: "MarkdownV2",
@@ -208,7 +214,7 @@ export const runBot = async () => {
 						};
 						await client.sendMessage({
 							chat_id: chatId,
-							text: escapeMarkdownV2("Чем еще могу помочь?"),
+							text: MessageBuilder.escapeMarkdownV2("Чем еще могу помочь?"),
 							parse_mode: "MarkdownV2",
 							reply_markup: replyKeyboard,
 						});
@@ -239,8 +245,8 @@ export const runBot = async () => {
 						await client.editMessageText({
 							chat_id: chatId,
 							message_id: messageId,
-							text: escapeMarkdownV2(
-								"Мастер свяжется с вами в течение 10 минут, укажите вашу проблему:",
+							text: MessageBuilder.escapeMarkdownV2(
+								"Мастер свяжется с вами в ближайшее время, укажите вашу проблему:",
 							),
 							parse_mode: "MarkdownV2",
 							reply_markup: inlineKeyboard,
@@ -310,9 +316,21 @@ export const runBot = async () => {
 									(id) =>
 										emergencyProblems.find((p) => p.id === id)?.text || id,
 								);
-							const messageToMaster = escapeMarkdownV2(
-								`*НОВАЯ ЭКСТРЕННАЯ ЗАЯВКА*\n\nОт пользователя: ${update.callback_query.from.first_name} (ID: ${update.callback_query.from.id})\nВыбранные проблемы:\n- ${selectedProblemTexts.join("\n- ")}\n\nМастер свяжется с вами в ближайшее время.`,
-							);
+							const messageToMaster = new MessageBuilder()
+								.addRawText("*НОВАЯ ЭКСТРЕННАЯ ЗАЯВКА*")
+								.newLine(2)
+								.addRawText(
+									`От пользователя: ${MessageBuilder.escapeMarkdownV2(update.callback_query.from.first_name || "Неизвестно")} (ID: ${MessageBuilder.escapeMarkdownV2(update.callback_query.from.id)})`,
+								)
+								.newLine()
+								.addRawText("Выбранные проблемы:")
+								.newLine()
+								.addRawText(
+									`\- ${selectedProblemTexts.map((p) => MessageBuilder.escapeMarkdownV2(p)).join("\n\- ")}`,
+								)
+								.newLine(2)
+								.addRawText("Мастер свяжется с вами в ближайшее время.")
+								.build();
 
 							// TODO: Отправить это сообщение мастеру (например, в отдельный чат или по email)
 							console.log("Сообщение мастеру:", messageToMaster); // For now, log to console
@@ -321,8 +339,8 @@ export const runBot = async () => {
 							await client.editMessageText({
 								chat_id: chatId,
 								message_id: messageId,
-								text: escapeMarkdownV2(
-									"Спасибо! Ваша заявка на экстренную помощь принята. Мастер свяжется с вами в течение 10 минут.",
+								text: MessageBuilder.escapeMarkdownV2(
+									"Спасибо! Ваша заявка на экстренную помощь принята. Мастер свяжется с вами в ближайшее время.",
 								),
 								parse_mode: "MarkdownV2",
 							});
@@ -337,7 +355,7 @@ export const runBot = async () => {
 							};
 							await client.sendMessage({
 								chat_id: chatId,
-								text: escapeMarkdownV2("Чем еще могу помочь?"),
+								text: MessageBuilder.escapeMarkdownV2("Чем еще могу помочь?"),
 								parse_mode: "MarkdownV2",
 								reply_markup: replyKeyboard,
 							});
@@ -363,7 +381,7 @@ export const runBot = async () => {
 							await client.editMessageText({
 								chat_id: chatId,
 								message_id: messageId,
-								text: escapeMarkdownV2(
+								text: MessageBuilder.escapeMarkdownV2(
 									`Вы выбрали: *${selectedService.name}*.\nНа какую дату вы хотели бы записаться? Пожалуйста, укажите дату в формате ДД.ММ.ГГГГ (например, 25.09.2025).`,
 								),
 								parse_mode: "MarkdownV2",
@@ -372,7 +390,7 @@ export const runBot = async () => {
 							await client.editMessageText({
 								chat_id: chatId,
 								message_id: messageId,
-								text: escapeMarkdownV2(
+								text: MessageBuilder.escapeMarkdownV2(
 									"Извините, выбранная услуга не найдена. Пожалуйста, попробуйте еще раз.",
 								),
 								parse_mode: "MarkdownV2",
