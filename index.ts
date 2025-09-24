@@ -1,1 +1,3 @@
-console.log("Hello via Bun!");
+import { runBot } from './src/infra/telegram-bot';
+
+runBot();

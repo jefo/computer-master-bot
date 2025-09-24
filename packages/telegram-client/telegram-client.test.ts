@@ -21,6 +21,8 @@ describe('TelegramClient', () => {
     expect(typeof client.getMe).toBe('function');
     expect(typeof client.sendMessage).toBe('function');
     expect(typeof client.getUpdates).toBe('function');
+    expect(typeof client.answerCallbackQuery).toBe('function');
+    expect(typeof client.editMessageText).toBe('function');
   });
 });
 
