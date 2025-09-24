@@ -4,7 +4,7 @@
     "": {
       "name": "computer-master-bot",
       "dependencies": {
-        "@maxdev1/sotajs": "^0.3.1",
+        "@maxdev1/sotajs": "^0.3.3",
       },
       "devDependencies": {
         "@types/bun": "latest",
@@ -15,7 +15,7 @@
     },
   },
   "packages": {
-    "@maxdev1/sotajs": ["@maxdev1/sotajs@0.3.1", "", { "dependencies": { "bottlejs": "^2.0.1", "immer": "^10.1.3", "zod": "^4.1.9" }, "peerDependencies": { "typescript": "^5.0.0" } }, "sha512-hr8o0gdYWB1i1SxBa7gUA7Wm+kNAvR1aB/OIXhQiAZ+yOlrKBkqi7Qy6TU8BwqW6JIn5bze5bHrEw8u/vFBw8Q=="],
+    "@maxdev1/sotajs": ["@maxdev1/sotajs@0.3.3", "", { "dependencies": { "bottlejs": "^2.0.1", "immer": "^10.1.3", "zod": "^4.1.9" }, "peerDependencies": { "typescript": "^5.0.0" } }, "sha512-m8+bNLa2v35my/leJOEerPMJOEhQmRLkvvNGn2s1lX+Xybvx/baPtKOqSqmj82IxGh+Ijrc68dvJ2d3Fone6hQ=="],
 
     "@types/bun": ["@types/bun@1.2.22", "", { "dependencies": { "bun-types": "1.2.22" } }, "sha512-5A/KrKos2ZcN0c6ljRSOa1fYIyCKhZfIVYeuyb4snnvomnpFqC0tTsEkdqNxbAgExV384OETQ//WAjl3XbYqQA=="],
 

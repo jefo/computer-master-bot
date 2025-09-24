@@ -1,113 +1,82 @@
 import { z } from "zod";
-import { usePort } from "@maxdev1/sotajs";
-import { randomUUID } from "crypto";
-import { 
-  Appointment, 
-  TimeSlot, 
-  Client,
-  ContactInfoSchema
-} from "../domain";
-import {
-  findTimeSlotByIdPort,
-  findClientByEmailPort,
-  saveAppointmentPort,
-  saveTimeSlotPort,
-  saveClientPort,
-  appointmentConfirmedOutPort
-} from "./ports";
+import { createPort, usePort } from "@maxdev1/sotajs";
+import { DailySchedule } from "../domain/daily-schedule.aggregate";
+import { TimeSlot } from "../domain/time-slot.vo";
+
+import { z } from "zod";
+import { createPort, usePort } from "@maxdev1/sotajs";
+import { DailySchedule } from "../domain/daily-schedule.aggregate";
+import { TimeSlot } from "../domain/time-slot.vo";
+
+// --- Ports ---
+
+// Port to get or create a schedule for a specific day
+export const findOrCreateDailySchedulePort = createPort<(date: string) => Promise<DailySchedule>>();
+// Port to save the modified schedule
+export const saveDailySchedulePort = createPort<(schedule: DailySchedule) => Promise<void>>();
+
+// Output ports
+export const appointmentScheduledOutPort = createPort<(output: { appointmentId: string, clientId: string, startTime: Date }) => Promise<void>>();
+export const timeSlotNotAvailableOutPort = createPort<(output: { clientId: string, startTime: Date, reason: string }) => Promise<void>>();
+
 
 // --- Input Schema ---
 
-const ScheduleAppointmentInputSchema = z.object({
-  timeSlotId: z.string().uuid(),
-  contactInfo: ContactInfoSchema,
+export const ScheduleAppointmentInputSchema = z.object({
+  clientId: z.string().uuid(),
+  startTime: z.date(),
+  durationInMinutes: z.number().positive(),
 });
 
 type ScheduleAppointmentInput = z.infer<typeof ScheduleAppointmentInputSchema>;
 
+
 // --- Use Case ---
 
-export const scheduleAppointmentUseCase = async (input: unknown): Promise<{ appointmentId: string; bookingReference: string }> => {
+export const scheduleAppointmentUseCase = async (input: ScheduleAppointmentInput): Promise<void> => {
   // 1. Validate input
-  const validInput = ScheduleAppointmentInputSchema.parse(input);
-  
+  const command = ScheduleAppointmentInputSchema.parse(input);
+
   // 2. Get dependencies
-  const findTimeSlotById = usePort(findTimeSlotByIdPort);
-  const findClientByEmail = usePort(findClientByEmailPort);
-  const saveAppointment = usePort(saveAppointmentPort);
-  const saveTimeSlot = usePort(saveTimeSlotPort);
-  const saveClient = usePort(saveClientPort);
-  const appointmentConfirmed = usePort(appointmentConfirmedOutPort);
-  
-  // 3. Find the time slot
-  const timeSlot = await findTimeSlotById(validInput.timeSlotId);
-  if (!timeSlot) {
-    throw new Error(`Time slot with id ${validInput.timeSlotId} not found`);
-  }
-  
-  if (!timeSlot.state.available) {
-    throw new Error("Selected time slot is not available");
-  }
-  
-  // 4. Check if client already exists
-  let client: Client;
-  const existingClient = await findClientByEmail(validInput.contactInfo.email);
-  
-  if (existingClient) {
-    client = existingClient;
-  } else {
-    // Create new client
-    client = Client.create({
-      id: randomUUID(),
-      name: validInput.contactInfo.name,
-      email: validInput.contactInfo.email,
-      phone: validInput.contactInfo.phone,
-      company: validInput.contactInfo.company,
-      createdAt: new Date(),
-      updatedAt: new Date(),
+  const findOrCreateSchedule = usePort(findOrCreateDailySchedulePort);
+  const saveSchedule = usePort(saveDailySchedulePort);
+  const onSuccess = usePort(appointmentScheduledOutPort);
+  const onFailure = usePort(timeSlotNotAvailableOutPort);
+
+  try {
+    // 3. Create TimeSlot Value Object
+    const startTime = command.startTime;
+    const endTime = new Date(startTime.getTime() + command.durationInMinutes * 60000);
+    const timeSlot = TimeSlot.create({ start: startTime, end: endTime });
+
+    // 4. Determine the schedule ID (e.g., '2025-12-31')
+    const scheduleId = startTime.toISOString().split('T')[0];
+
+    // 5. Load the aggregate
+    const schedule = await findOrCreateSchedule(scheduleId);
+
+    // 6. Execute domain logic
+    const newAppointment = schedule.actions.book({
+      clientId: command.clientId,
+      timeSlot,
     });
-    await saveClient(client);
+
+    // 7. Save the modified aggregate
+    await saveSchedule(schedule);
+
+    // 8. Call success output port
+    await onSuccess({
+      appointmentId: newAppointment.state.id,
+      clientId: newAppointment.state.clientId,
+      startTime: newAppointment.state.timeSlot.start,
+    });
+
+  } catch (error: any) {
+    // 9. Call failure output port
+    await onFailure({
+      clientId: command.clientId,
+      startTime: command.startTime,
+      reason: error.message,
+    });
   }
-  
-  // 5. Book the time slot
-  timeSlot.actions.book(client.state.id);
-  await saveTimeSlot(timeSlot);
-  
-  // 6. Create appointment
-  const now = new Date();
-  const bookingReference = `BK-${now.getFullYear()}${(now.getMonth() + 1).toString().padStart(2, '0')}${now.getDate().toString().padStart(2, '0')}-${randomUUID().substring(0, 6).toUpperCase()}`;
-  
-  const appointment = Appointment.create({
-    id: randomUUID(),
-    clientId: client.state.id,
-    timeSlotId: timeSlot.state.id, // Store the time slot ID
-    timeSlot: { // Store the time range
-      start: timeSlot.state.start,
-      end: timeSlot.state.end
-    },
-    contactInfo: validInput.contactInfo,
-    status: "scheduled",
-    bookingReference,
-    createdAt: now,
-    updatedAt: now,
-    reminderSent: false,
-  });
-  
-  // 7. Save appointment
-  await saveAppointment(appointment);
-  
-  // 8. Send confirmation
-  await appointmentConfirmed({
-    appointmentId: appointment.state.id,
-    clientName: appointment.state.contactInfo.name,
-    clientEmail: appointment.state.contactInfo.email,
-    timeSlot: appointment.state.timeSlot,
-    bookingReference: appointment.state.bookingReference,
-  });
-  
-  // 9. Return result
-  return {
-    appointmentId: appointment.state.id,
-    bookingReference: appointment.state.bookingReference,
-  };
 };

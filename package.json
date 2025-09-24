@@ -10,6 +10,6 @@
     "typescript": "^5"
   },
   "dependencies": {
-    "@maxdev1/sotajs": "^0.3.1"
+    "@maxdev1/sotajs": "^0.3.3"
   }
 }
