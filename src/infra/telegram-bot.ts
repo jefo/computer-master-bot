@@ -17,11 +17,11 @@ const BOT_TOKEN = process.env.BOT_TOKEN || "YOUR_BOT_TOKEN_HERE";
 
 // --- Emergency Problems (Hardcoded for now) ---
 const emergencyProblems = [
-	{ id: "no_power", text: "Компьютер не включается" },
-	{ id: "bsod", text: "Синий экран смерти" },
-	{ id: "virus_slow", text: "Вирусы / Медленная работа" },
-	{ id: "no_internet", text: "Нет интернета" },
-	{ id: "other", text: "Другая проблема" },
+	{ id: "no_power", text: "🖥Компьютер не включается" },
+	{ id: "bsod", text: "💀Синий экран смерти" },
+	{ id: "virus_slow", text: "🐌Вирусы / Медленная работа" },
+	{ id: "no_internet", text: "🌐Нет интернета" },
+	{ id: "other", text: "❓Другая проблема" },
 ];
 
 // --- Simulate Master Status ---
@@ -72,14 +72,16 @@ export const runBot = async () => {
 						const masterStatus = getMasterStatus();
 
 						const welcomeMessageBuilder = new MessageBuilder()
-							.addText("Привет! Я ваш личный помощник компьютерного мастера.")
+							.addText(
+								"👋 Привет! Я ваш личный помощник компьютерного мастера.",
+							)
 							.newLine()
 							.addRawText(
-								`Статус мастера: *${MessageBuilder.escapeMarkdownV2(masterStatus)}*`,
+								`✨ Статус мастера: *${MessageBuilder.escapeMarkdownV2(masterStatus)}*`,
 							)
 							.newLine()
 							.addText(
-								"Готов помочь с диагностикой, ремонтом и настройкой вашего ПК.",
+								"💻 Готов помочь с диагностикой, ремонтом и настройкой вашего ПК.",
 							);
 
 						const replyKeyboard: ReplyKeyboardMarkup = {
@@ -105,7 +107,7 @@ export const runBot = async () => {
 							inline_keyboard: [
 								[
 									{
-										text: "Экстренная помощь",
+										text: "🆘 Экстренная помощь",
 										callback_data: "emergency_help",
 									},
 								],
@@ -113,9 +115,11 @@ export const runBot = async () => {
 						};
 						await client.sendMessage({
 							chat_id: chatId,
-							text: MessageBuilder.escapeMarkdownV2(
-								"Если вам нужна экстренная помощь, нажмите кнопку ниже:",
-							),
+							text: new MessageBuilder()
+								.addText(
+									"🚨 Если вам нужна экстренная помощь, нажмите кнопку ниже:",
+								)
+								.build(),
 							parse_mode: "MarkdownV2",
 							reply_markup: emergencyInlineKeyboard,
 						});
@@ -126,17 +130,17 @@ export const runBot = async () => {
 						const priceList = await showPricesUseCase();
 
 						const priceListBuilder = new MessageBuilder()
-							.addTitle("Наши услуги:")
+							.addTitle("🛠 Наши услуги:")
 							.newLine();
 
 						priceList.forEach((item) => {
 							priceListBuilder
 								.addRawText(
-									`*${MessageBuilder.escapeMarkdownV2(item.name)}* \- ${MessageBuilder.escapeMarkdownV2(item.price)} руб`,
+									`${MessageBuilder.escapeMarkdownV2(item.name)}: ${MessageBuilder.escapeMarkdownV2(item.price)} руб`,
 								)
 								.newLine()
 								.addRawText(
-									`_${MessageBuilder.escapeMarkdownV2(item.description)}_`,
+									`${MessageBuilder.escapeMarkdownV2(item.description)}`,
 								)
 								.newLine(2); // Two new lines for spacing between items
 						});
@@ -170,9 +174,11 @@ export const runBot = async () => {
 
 						await client.sendMessage({
 							chat_id: chatId,
-							text: MessageBuilder.escapeMarkdownV2(
-								"Отлично! Чтобы записаться на прием, пожалуйста, выберите интересующую вас услугу:",
-							),
+							text: new MessageBuilder()
+								.addText(
+									"🗓 Отлично! Чтобы записаться на прием, пожалуйста, выберите интересующую вас услугу:",
+								)
+								.build(),
 							parse_mode: "MarkdownV2",
 							reply_markup: inlineKeyboard,
 						});
@@ -180,9 +186,11 @@ export const runBot = async () => {
 						// Обработка неизвестных текстовых сообщений
 						await client.sendMessage({
 							chat_id: chatId,
-							text: MessageBuilder.escapeMarkdownV2(
-								"Извините, я не понял вашу команду.\nПожалуйста, воспользуйтесь кнопками меню или отправьте /start, чтобы увидеть доступные опции.",
-							),
+							text: new MessageBuilder()
+								.addText(
+									"🤔 Извините, я не понял вашу команду. Пожалуйста, воспользуйтесь кнопками меню или отправьте /start, чтобы увидеть доступные опции.",
+								)
+								.build(),
 							parse_mode: "MarkdownV2",
 						});
 					}
@@ -198,9 +206,11 @@ export const runBot = async () => {
 						await client.editMessageText({
 							chat_id: chatId,
 							message_id: messageId,
-							text: MessageBuilder.escapeMarkdownV2(
-								"Запись отменена. Вы можете начать заново, отправив /start.",
-							),
+							text: new MessageBuilder()
+								.addText(
+									"❌ Запись отменена. Вы можете начать заново, отправив /start.",
+								)
+								.build(),
 							parse_mode: "MarkdownV2",
 						});
 						// Отправляем главное меню после отмены
@@ -214,7 +224,9 @@ export const runBot = async () => {
 						};
 						await client.sendMessage({
 							chat_id: chatId,
-							text: MessageBuilder.escapeMarkdownV2("Чем еще могу помочь?"),
+							text: new MessageBuilder()
+								.addText("❓Чем еще могу помочь?")
+								.build(),
 							parse_mode: "MarkdownV2",
 							reply_markup: replyKeyboard,
 						});
@@ -245,9 +257,9 @@ export const runBot = async () => {
 						await client.editMessageText({
 							chat_id: chatId,
 							message_id: messageId,
-							text: MessageBuilder.escapeMarkdownV2(
-								"Мастер свяжется с вами в ближайшее время, укажите вашу проблему:",
-							),
+							text: new MessageBuilder()
+								.addText("🚨 Укажите вашу проблему:")
+								.build(),
 							parse_mode: "MarkdownV2",
 							reply_markup: inlineKeyboard,
 						});
@@ -339,9 +351,11 @@ export const runBot = async () => {
 							await client.editMessageText({
 								chat_id: chatId,
 								message_id: messageId,
-								text: MessageBuilder.escapeMarkdownV2(
-									"Спасибо! Ваша заявка на экстренную помощь принята. Мастер свяжется с вами в ближайшее время.",
-								),
+								text: new MessageBuilder()
+									.addText(
+										"✅ Спасибо! Ваша заявка на экстренную помощь принята. Мастер свяжется с вами в ближайшее время.",
+									)
+									.build(),
 								parse_mode: "MarkdownV2",
 							});
 							// Отправляем главное меню
@@ -355,7 +369,9 @@ export const runBot = async () => {
 							};
 							await client.sendMessage({
 								chat_id: chatId,
-								text: MessageBuilder.escapeMarkdownV2("Чем еще могу помочь?"),
+								text: new MessageBuilder()
+									.addText("❓ Чем еще могу помочь?")
+									.build(),
 								parse_mode: "MarkdownV2",
 								reply_markup: replyKeyboard,
 							});
@@ -381,18 +397,25 @@ export const runBot = async () => {
 							await client.editMessageText({
 								chat_id: chatId,
 								message_id: messageId,
-								text: MessageBuilder.escapeMarkdownV2(
-									`Вы выбрали: *${selectedService.name}*.\nНа какую дату вы хотели бы записаться? Пожалуйста, укажите дату в формате ДД.ММ.ГГГГ (например, 25.09.2025).`,
-								),
+								text: new MessageBuilder()
+									.addRawText(
+										`🗓 Вы выбрали: ${MessageBuilder.escapeMarkdownV2(selectedService.name)}`,
+									)
+									.addText(
+										`На какую дату вы хотели бы записаться? Пожалуйста, укажите дату в формате ДД.ММ.ГГГГ (например, 25.09.2025).`,
+									)
+									.build(),
 								parse_mode: "MarkdownV2",
 							});
 						} else {
 							await client.editMessageText({
 								chat_id: chatId,
 								message_id: messageId,
-								text: MessageBuilder.escapeMarkdownV2(
-									"Извините, выбранная услуга не найдена. Пожалуйста, попробуйте еще раз.",
-								),
+								text: new MessageBuilder()
+									.addText(
+										"🤔 Извините, выбранная услуга не найдена. Пожалуйста, попробуйте еще раз.",
+									)
+									.build(),
 								parse_mode: "MarkdownV2",
 							});
 							setConversationState(chatId, { step: "SELECT_SERVICE" }); // Возвращаем на шаг выбора услуги
