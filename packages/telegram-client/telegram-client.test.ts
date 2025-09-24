@@ -23,6 +23,7 @@ describe('TelegramClient', () => {
     expect(typeof client.getUpdates).toBe('function');
     expect(typeof client.answerCallbackQuery).toBe('function');
     expect(typeof client.editMessageText).toBe('function');
+    expect(typeof client.editMessageReplyMarkup).toBe('function');
   });
 });
 

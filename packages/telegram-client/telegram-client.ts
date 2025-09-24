@@ -1,61 +1,63 @@
 // telegram-client.ts - Main Telegram client implementation
 
 import { ApiResponse } from "./telegram-types";
-import type {
-	GetMeResponse,
-	SendMessageParams,
-	SendMessageResponse,
-	GetUpdatesParams,
-	GetUpdatesResponse,
-	ForwardMessageParams,
-	ForwardMessageResponse,
-	CopyMessageParams,
-	CopyMessageResponse,
-	SendPhotoParams,
-	SendPhotoResponse,
-	SendAudioParams,
-	SendAudioResponse,
-	SendDocumentParams,
-	SendDocumentResponse,
-	SendVideoParams,
-	SendVideoResponse,
-	SendAnimationParams,
-	SendAnimationResponse,
-	SendVoiceParams,
-	SendVoiceResponse,
-	SendVideoNoteParams,
-	SendVideoNoteResponse,
-	SendMediaGroupParams,
-	SendMediaGroupResponse,
-	SendLocationParams,
-	SendLocationResponse,
-	EditMessageLiveLocationParams,
-	EditMessageLiveLocationResponse,
-	StopMessageLiveLocationParams,
-	StopMessageLiveLocationResponse,
-	SendVenueParams,
-	SendVenueResponse,
-	SendContactParams,
-	SendContactResponse,
-	SendPollParams,
-	SendPollResponse,
-	SendDiceParams,
-	SendDiceResponse,
-	SendChatActionParams,
-	SendChatActionResponse,
-	GetUserProfilePhotosParams,
-	GetUserProfilePhotosResponse,
-	GetFileParams,
-	GetFileResponse,
-	BanChatMemberParams,
-	BanChatMemberResponse,
-	UnbanChatMemberParams,
-	UnbanChatMemberResponse,
-	AnswerCallbackQueryParams,
-	AnswerCallbackQueryResponse,
-	EditMessageTextParams,
-	EditMessageTextResponse,
-} from "./telegram-types";
+import type { 
+  GetMeResponse,
+  SendMessageParams, 
+  SendMessageResponse,
+  GetUpdatesParams,
+  GetUpdatesResponse,
+  ForwardMessageParams,
+  ForwardMessageResponse,
+  CopyMessageParams,
+  CopyMessageResponse,
+  SendPhotoParams,
+  SendPhotoResponse,
+  SendAudioParams,
+  SendAudioResponse,
+  SendDocumentParams,
+  SendDocumentResponse,
+  SendVideoParams,
+  SendVideoResponse,
+  SendAnimationParams,
+  SendAnimationResponse,
+  SendVoiceParams,
+  SendVoiceResponse,
+  SendVideoNoteParams,
+  SendVideoNoteResponse,
+  SendMediaGroupParams,
+  SendMediaGroupResponse,
+  SendLocationParams,
+  SendLocationResponse,
+  EditMessageLiveLocationParams,
+  EditMessageLiveLocationResponse,
+  StopMessageLiveLocationParams,
+  StopMessageLiveLocationResponse,
+  SendVenueParams,
+  SendVenueResponse,
+  SendContactParams,
+  SendContactResponse,
+  SendPollParams,
+  SendPollResponse,
+  SendDiceParams,
+  SendDiceResponse,
+  SendChatActionParams,
+  SendChatActionResponse,
+  GetUserProfilePhotosParams,
+  GetUserProfilePhotosResponse,
+  GetFileParams,
+  GetFileResponse,
+  BanChatMemberParams,
+  BanChatMemberResponse,
+  UnbanChatMemberParams,
+  UnbanChatMemberResponse,
+  AnswerCallbackQueryParams,
+  AnswerCallbackQueryResponse,
+  EditMessageTextParams,
+  EditMessageTextResponse,
+  EditMessageReplyMarkupParams,
+  EditMessageReplyMarkupResponse
+} from './telegram-types';
 
 export class TelegramClient {
 	private readonly baseUrl: string;
@@ -407,6 +409,19 @@ export class TelegramClient {
 	): Promise<EditMessageTextResponse> {
 		const response = await this.request<EditMessageTextResponse>(
 			"editMessageText",
+			params,
+		);
+		return response.result!;
+	}
+
+	/**
+	 * Edit only the reply markup of messages
+	 */
+	async editMessageReplyMarkup(
+		params: EditMessageReplyMarkupParams,
+	): Promise<EditMessageReplyMarkupResponse> {
+		const response = await this.request<EditMessageReplyMarkupResponse>(
+			"editMessageReplyMarkup",
 			params,
 		);
 		return response.result!;

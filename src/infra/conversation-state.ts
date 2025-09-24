@@ -1,11 +1,12 @@
 // src/infra/conversation-state.ts
 
 export interface ConversationState {
-  step: 'IDLE' | 'SELECT_SERVICE' | 'ASK_DATE' | 'SELECT_TIMESLOT' | 'ASK_CONTACT_INFO';
+  step: 'IDLE' | 'SELECT_SERVICE' | 'ASK_DATE' | 'SELECT_TIMESLOT' | 'ASK_CONTACT_INFO' | 'EMERGENCY_SELECT_PROBLEMS'; // Added new step
   serviceId?: string;
   serviceName?: string;
   selectedDate?: Date;
   selectedTimeSlotId?: string;
+  selectedEmergencyProblems?: string[]; // Added new field for emergency problems
   // Добавляйте другие поля по мере необходимости для флоу записи
 }
 
