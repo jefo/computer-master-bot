@@ -1,25 +1,16 @@
-# Booking Context
+# Booking Module
 
-Bounded context for appointment booking and scheduling functionality.
+This module provides all necessary functionality for appointment booking and scheduling. It is built using Domain-Driven Design (DDD) principles with the SotaJS framework, ensuring a clean separation between business logic and infrastructure.
 
-## Overview
+## Architecture
 
-This context provides functionality for scheduling consultations between potential clients and our sales/consultation team. It implements a simple booking system using Domain-Driven Design principles with the SotaJS framework.
+The module follows a CQRS-like pattern where commands (actions that change state) and queries (requests for data) are separated.
 
-## Key Features
+- **Domain (`src/domain`)**: Contains the core business logic. The central piece is the `DailySchedule` aggregate, which ensures that all booking operations are atomic and consistent, preventing issues like double-booking.
+- **Application (`src/application`)**: Contains the use cases that orchestrate the business logic.
+- **Infrastructure (`src/infrastructure`)**: Provides concrete implementations (adapters) for the ports defined in the application layer. For example, this is where database logic would reside.
 
-- Appointment scheduling with time slot management
-- Client contact information collection
-- Booking confirmation and notifications
-- Rescheduling and cancellation capabilities
-
-## Documentation
-
-- [API Documentation](./docs/API.md) - Complete API reference for all use cases
-- [Quick Start Guide](./docs/QUICK_START.md) - Getting started quickly with the booking context
-- [Integration Examples](./docs/INTEGRATION.md) - Practical examples for bot and web integration
-- [Context Documentation](./docs/CONTEXT.md) - Detailed domain model and architecture
-- [E2E Demo](./e2e-booking-demo.ts) - Complete end-to-end demonstration
+Use cases do not use output ports; for simplicity, they return a Data Transfer Object (DTO) on success or throw an error on failure.
 
 ## Installation
 
@@ -33,33 +24,140 @@ bun install
 bun test
 ```
 
-## Running the E2E Demo
+---
 
-```bash
-bun run e2e-booking-demo.ts
+## Developer API & Use Cases
+
+This section provides a reference for the available use cases and how to use them.
+
+### `scheduleAppointmentUseCase`
+
+Schedules a new appointment. It is an atomic operation guaranteed by the `DailySchedule` aggregate.
+
+**Input:** `ScheduleAppointmentInput`
+```typescript
+{
+  clientId: string;          // UUID of the client
+  startTime: Date;           // Start time of the appointment
+  durationInMinutes: number; // Duration of the appointment
+}
 ```
 
-## Architecture
+**Output (on success):** `ScheduleAppointmentOutput`
+```typescript
+{
+  appointmentId: string;
+  clientId: string;
+  startTime: Date;
+}
+```
 
-Follows the SotaJS DDD architecture with clear separation of concerns:
+**Errors:** Throws an error if the time slot is not available.
 
-- **Domain**: Core business logic and entities
-- **Application**: Use cases and business workflows
-- **Infrastructure**: Adapters and external integrations
+**Example:**
+```typescript
+import { scheduleAppointmentUseCase } from "./src/application";
+import { randomUUID } from "crypto";
 
-## Key Use Cases
+const clientId = randomUUID();
+const appointmentTime = new Date("2025-12-01T14:00:00.000Z");
 
-1. **Schedule Appointment** - Books a time slot for a consultation
-2. **Get Available Time Slots** - Retrieves available time slots for booking
-3. **Cancel Appointment** - Cancels a previously booked appointment
-4. **Reschedule Appointment** - Moves an appointment to a different time slot
+try {
+  const result = await scheduleAppointmentUseCase({
+    clientId,
+    startTime: appointmentTime,
+    durationInMinutes: 60,
+  });
+  console.log("Appointment scheduled:", result);
+  // {
+  //   appointmentId: "...",
+  //   clientId: "...",
+  //   startTime: Date("2025-12-01T14:00:00.000Z")
+  // }
+} catch (error) {
+  console.error("Failed to schedule:", error.message);
+}
+```
 
-## Integration
+---
 
-The booking context is designed to be easily integrated into:
-- Chatbots using messaging platforms
-- Web applications with REST APIs
-- Mobile applications
-- Other business systems
+### `cancelAppointmentUseCase`
 
-All integration points are handled through well-defined use cases and ports/adapters pattern.
+Cancels a previously scheduled appointment.
+
+**Input:** `CancelAppointmentInput`
+```typescript
+{
+  appointmentId: string; // UUID of the appointment to cancel
+}
+```
+
+**Output (on success):** `CancelAppointmentOutput`
+```typescript
+{
+  appointmentId: string;
+  status: "cancelled";
+}
+```
+
+**Errors:** Throws an error if the appointment is not found.
+
+**Example:**
+```typescript
+import { cancelAppointmentUseCase } from "./src/application";
+
+const appointmentIdToCancel = "d8f8b8f8-8f8f-8f8f-8f8f-8f8f8f8f8f8f";
+
+try {
+  const result = await cancelAppointmentUseCase({
+    appointmentId: appointmentIdToCancel,
+  });
+  console.log("Appointment cancelled:", result);
+  // { appointmentId: "...", status: "cancelled" }
+} catch (error) {
+  console.error("Failed to cancel:", error.message);
+}
+```
+
+---
+
+### `getAvailableTimeSlotsUseCase`
+
+Retrieves a list of available time slots within a given date range. It calculates availability by finding the "gaps" between already booked appointments within standard working hours (9:00 - 17:00).
+
+**Input:** `GetAvailableTimeSlotsInput`
+```typescript
+{
+  startDate: Date;
+  endDate: Date;
+}
+```
+
+**Output (on success):** `GetAvailableTimeSlotsOutput` (an array of `TimeSlotDTO`)
+```typescript
+[
+  { start: Date, end: Date },
+  { start: Date, end: Date },
+  // ...
+]
+```
+
+**Example:**
+```typescript
+import { getAvailableTimeSlotsUseCase } from "./src/application";
+
+const startDate = new Date("2025-12-01T00:00:00.000Z");
+const endDate = new Date("2025-12-01T23:59:59.999Z");
+
+const availableSlots = await getAvailableTimeSlotsUseCase({
+  startDate,
+  endDate,
+});
+
+console.log("Available Slots:", availableSlots);
+// [
+//   { start: Date("...T09:00:00..."), end: Date("...T10:00:00...") },
+//   { start: Date("...T10:00:00..."), end: Date("...T11:00:00...") },
+//   ...
+// ]
+```

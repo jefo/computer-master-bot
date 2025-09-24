@@ -1,66 +1,64 @@
 import { z } from "zod";
-import { usePort } from "@maxdev1/sotajs";
-import { Appointment, TimeSlot } from "../domain";
-import {
-	findAppointmentByIdPort,
-	findTimeSlotByIdPort,
-	saveAppointmentPort,
-	saveTimeSlotPort,
-	appointmentCancelledOutPort,
-} from "./ports";
-import { time } from "console";
+import { createPort, usePort } from "@maxdev1/sotajs";
+import { DailySchedule } from "../domain/daily-schedule.aggregate";
+import { Appointment } from "../domain/appointment.entity";
+
+// --- Ports ---
+
+// We need a way to find an appointment to know which schedule to load
+export const findAppointmentByIdPort = createPort<(appointmentId: string) => Promise<Appointment | null>>();
+export const findOrCreateDailySchedulePort = createPort<(date: string) => Promise<DailySchedule>>();
+export const saveDailySchedulePort = createPort<(schedule: DailySchedule) => Promise<void>>();
+
 
 // --- Input Schema ---
 
-const CancelAppointmentInputSchema = z.object({
-	appointmentId: z.string().uuid(),
+export const CancelAppointmentInputSchema = z.object({
+  appointmentId: z.string().uuid(),
 });
 
 type CancelAppointmentInput = z.infer<typeof CancelAppointmentInputSchema>;
 
+// --- Output DTO ---
+
+export type CancelAppointmentOutput = {
+  appointmentId: string;
+  status: 'cancelled';
+};
+
+
 // --- Use Case ---
 
-export const cancelAppointmentUseCase = async (
-	input: unknown,
-): Promise<void> => {
-	// 1. Validate input
-	const validInput = CancelAppointmentInputSchema.parse(input);
+export const cancelAppointmentUseCase = async (input: CancelAppointmentInput): Promise<CancelAppointmentOutput> => {
+  // 1. Validate input
+  const command = CancelAppointmentInputSchema.parse(input);
 
-	// 2. Get dependencies
-	const findAppointmentById = usePort(findAppointmentByIdPort);
-	const findTimeSlotById = usePort(findTimeSlotByIdPort);
-	const saveAppointment = usePort(saveAppointmentPort);
-	const saveTimeSlot = usePort(saveTimeSlotPort);
-	const appointmentCancelled = usePort(appointmentCancelledOutPort);
+  // 2. Get dependencies
+  const findAppointmentById = usePort(findAppointmentByIdPort);
+  const findOrCreateSchedule = usePort(findOrCreateDailySchedulePort);
+  const saveSchedule = usePort(saveDailySchedulePort);
 
-	// 3. Find the appointment
-	const appointment = await findAppointmentById(validInput.appointmentId);
-	if (!appointment) {
-		throw new Error(
-			`Appointment with id ${validInput.appointmentId} not found`,
-		);
-	}
+  // 3. Find the appointment to get its date
+  const appointment = await findAppointmentById(command.appointmentId);
+  if (!appointment) {
+    throw new Error("Appointment not found");
+  }
 
-	// 4. Check if appointment can be cancelled
-	if (appointment.state.status === "cancelled") {
-		throw new Error("Appointment is already cancelled");
-	}
+  // 4. Determine the schedule ID from the appointment's date
+  const scheduleId = appointment.state.timeSlot.start.toISOString().split('T')[0];
 
-	// 5. Cancel the appointment
-	appointment.actions.cancel();
-	await saveAppointment(appointment);
+  // 5. Load the aggregate
+  const schedule = await findOrCreateSchedule(scheduleId);
 
-	// 6. Release the time slot
-	const timeSlot = await findTimeSlotById(appointment.state.timeSlotId);
-	if (timeSlot) {
-		timeSlot.actions.release();
-		await saveTimeSlot(timeSlot);
-	}
+  // 6. Execute domain logic
+  schedule.actions.cancel({ appointmentId: command.appointmentId });
 
-	// 7. Send cancellation notification
-	await appointmentCancelled({
-		appointmentId: appointment.state.id,
-		clientName: appointment.state.contactInfo.name,
-		clientEmail: appointment.state.contactInfo.email,
-	});
+  // 7. Save the modified aggregate
+  await saveSchedule(schedule);
+
+  // 8. Return result DTO
+  return {
+    appointmentId: command.appointmentId,
+    status: 'cancelled',
+  };
 };

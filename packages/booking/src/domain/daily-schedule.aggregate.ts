@@ -48,7 +48,8 @@ export const DailySchedule = createAggregate({
 			const hasOverlap = state.appointments.some(
 				(app) =>
 					app.status === "confirmed" &&
-					(timeSlot.props.start < app.timeSlot.end! && timeSlot.props.end > app.timeSlot.start!)
+					timeSlot.props.start < app.timeSlot.end! &&
+					timeSlot.props.end > app.timeSlot.start!,
 			);
 
 			if (hasOverlap) {
