@@ -204,6 +204,39 @@ const showReviewScreen = async (
 	});
 };
 
+const showDateSelectionScreen = async (client: TelegramClient, chatId: number, messageId: number) => {
+	const state = getConversationState(chatId);
+	if (!state) return;
+
+	setConversationState(chatId, { ...state, step: "ASK_DATE" });
+
+	const builder = new MessageBuilder().addText("🗓 На какую дату вы хотели бы записаться?");
+
+	const dateKeyboard = [
+		[
+            { text: "Сегодня", callback_data: "book_date_today" },
+            { text: "Завтра", callback_data: "book_date_tomorrow" },
+            { text: "Выбрать день", callback_data: "book_date_picker" }
+        ],
+	];
+
+	if (state.flowType === 'emergency') {
+		dateKeyboard.unshift([{ text: "🚨 Сейчас", callback_data: "book_now" }]);
+	}
+
+	const inlineKeyboard: InlineKeyboardMarkup = {
+		inline_keyboard: dateKeyboard,
+	};
+
+	await client.editMessageText({
+		chat_id: chatId,
+		message_id: messageId,
+		text: builder.build(),
+		parse_mode: "MarkdownV2",
+		reply_markup: inlineKeyboard,
+	});
+};
+
 // --- Main Bot Logic ---
 
 export const runBot = async () => {
@@ -335,96 +368,53 @@ export const runBot = async () => {
 								show_alert: true,
 							});
 						}
-					} else if (callbackData === "selection_edit") {
-						if (
-							currentState.step === "REVIEW_SELECTION" &&
-							currentState.flowType
-						) {
-							await showSelectionScreen(
-								client,
-								chatId,
-								currentState.flowType,
-								messageId,
-							);
-						}
-					} else if (callbackData === "selection_edit") {
-						if (
-							currentState.step === "REVIEW_SELECTION" &&
-							currentState.flowType
-						) {
-							await showSelectionScreen(
-								client,
-								chatId,
-								currentState.flowType,
-								messageId,
-							);
+										} else if (callbackData === "selection_edit") {
+						if (currentState.step === "REVIEW_SELECTION" && currentState.flowType) {
+							await showSelectionScreen(client, chatId, currentState.flowType, messageId);
 						}
 					} else if (callbackData === "confirm_selection") {
-						if (
-							currentState.step === "REVIEW_SELECTION" &&
-							currentState.flowType
-						) {
-							if (currentState.flowType === "emergency") {
-								if (MASTER_CHAT_ID) {
-									const userText = `От: ${MessageBuilder.escapeMarkdownV2(from.first_name)}${from.last_name ? ` ${MessageBuilder.escapeMarkdownV2(from.last_name)}` : ""} @${from.username}, ID: ${from.id}`;
-
-									const masterMessage = new MessageBuilder()
-										.addRawText("🚨 *НОВАЯ ЭКСТРЕННАЯ ЗАЯВКА* 🚨")
-										.newLine(2)
-										.addRawText(userText)
-										.newLine(2)
-										.addRawText("*Проблемы:*")
-										.newLine();
-
-									(currentState.selectedItems || []).forEach((p) => {
-										masterMessage.addListItem(p.name).newLine();
-									});
-
-									const masterKeyboard: InlineKeyboardMarkup = {
-										inline_keyboard: [
-											[
-												{
-													text: "💬 Связаться с клиентом",
-													url: `tg://user?id=${from.id}`,
-												},
-											],
-										],
-									};
-
-									await client.sendMessage({
-										chat_id: MASTER_CHAT_ID,
-										text: masterMessage.build(),
-										parse_mode: "MarkdownV2",
-										reply_markup: masterKeyboard,
-									});
-
-									await client.editMessageText({
-										chat_id: chatId,
-										message_id: messageId,
-										text: "✅ Спасибо\\! Ваша заявка принята\\. Мастер свяжется с вами в ближайшее время\\.",
-										parse_mode: "MarkdownV2",
-									});
-									clearConversationState(chatId);
-								} else if (!MASTER_CHAT_ID) {
-									await client.answerCallbackQuery({
-										callback_query_id: update.callback_query.id,
-										text: "Ошибка: Невозможно отправить заявку мастеру.",
-										show_alert: true,
-									});
-								}
-							} else if (currentState.flowType === "booking") {
-								setConversationState(chatId, {
-									...currentState,
-									step: "ASK_DATE",
-								});
-								await client.editMessageText({
-									chat_id: chatId,
-									message_id: messageId,
-									text: "🗓 На какую дату вы хотели бы записаться? Пожалуйста, укажите дату в формате ДД.ММ.ГГГГ.",
-									parse_mode: "MarkdownV2",
-								});
-							}
+						if (currentState.step === "REVIEW_SELECTION") {
+							await showDateSelectionScreen(client, chatId, messageId);
 						}
+										} else if (callbackData === "book_now") {
+						if (currentState.step === "ASK_DATE" && MASTER_CHAT_ID) {
+							const userText = `От: ${MessageBuilder.escapeMarkdownV2(from.first_name)}${from.last_name ? ` ${MessageBuilder.escapeMarkdownV2(from.last_name)}` : ''} (@${from.username}, ID: ${from.id})`;
+							
+							const masterMessage = new MessageBuilder()
+								.addRawText("🚨 *НОВАЯ ЭКСТРЕННАЯ ЗАЯВКА (СЕЙЧАС)* 🚨")
+								.newLine(2)
+								.addRawText(userText)
+								.newLine(2)
+								.addRawText("*Проблемы:*")
+								.newLine();
+
+							(currentState.selectedItems || []).forEach(p => {
+								masterMessage.addListItem(p.name).newLine();
+							});
+
+							const masterKeyboard: InlineKeyboardMarkup = {
+								inline_keyboard: [[{ text: "💬 Связаться с клиентом", url: `tg://user?id=${from.id}` }]]
+							};
+
+							await client.sendMessage({
+								chat_id: MASTER_CHAT_ID,
+								text: masterMessage.build(),
+								parse_mode: "MarkdownV2",
+								reply_markup: masterKeyboard,
+							});
+
+							await client.editMessageText({
+								chat_id: chatId,
+								message_id: messageId,
+								text: "✅ Спасибо! Ваша заявка принята. Мастер свяжется с вами в ближайшее время.",
+								parse_mode: "MarkdownV2",
+							});
+							clearConversationState(chatId);
+						} else if (!MASTER_CHAT_ID) {
+							await client.answerCallbackQuery({ callback_query_id: update.callback_query.id, text: "Ошибка: Невозможно отправить заявку мастеру.", show_alert: true });
+						}
+					} else if (["book_date_today", "book_date_tomorrow", "book_date_picker"].includes(callbackData)) {
+                        await client.answerCallbackQuery({ callback_query_id: update.callback_query.id, text: "Эта функциональность в разработке", show_alert: true });
 					} else if (callbackData === "cancel_flow") {
 						await client.editMessageText({
 							chat_id: chatId,
