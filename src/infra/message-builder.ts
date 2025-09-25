@@ -20,7 +20,7 @@ export class MessageBuilder {
 	}
 
 	addListItem(item: string): MessageBuilder {
-		this.parts.push(`\- ${MessageBuilder.escapeMarkdownV2(item)}`);
+		this.parts.push(`\\- ${MessageBuilder.escapeMarkdownV2(item)}`);
 		return this;
 	}
 
@@ -40,6 +40,6 @@ export class MessageBuilder {
 	}
 
 	build(): string {
-		return this.parts.join("\n");
+		return this.parts.join(""); // FIX: Join with empty string, not newline
 	}
 }
