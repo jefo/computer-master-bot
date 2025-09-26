@@ -507,14 +507,30 @@ export const showReportForm = async (client: TelegramClient, chatId: number, mes
     // Add special instruction if a field is being edited
     if (editingField) {
         let fieldLabel = "";
-        if (editingField === "cash") fieldLabel = "наличные";
-        else if (editingField === "card") fieldLabel = "безналичный расчет";
-        else if (editingField === "qr") fieldLabel = "оплату по QR-коду";
-        else if (editingField === "transfer") fieldLabel = "переводом";
-        else if (editingField === "returns") fieldLabel = "возвраты";
+        let fieldIcon = "";
+        if (editingField === "cash") {
+            fieldLabel = "наличные";
+            fieldIcon = "💵";
+        }
+        else if (editingField === "card") {
+            fieldLabel = "безналичный расчет";
+            fieldIcon = "💳";
+        }
+        else if (editingField === "qr") {
+            fieldLabel = "оплату по QR-коду";
+            fieldIcon = "📱";
+        }
+        else if (editingField === "transfer") {
+            fieldLabel = "переводом";
+            fieldIcon = "🔄";
+        }
+        else if (editingField === "returns") {
+            fieldLabel = "возвраты";
+            fieldIcon = "↩️";
+        }
         
         builder
-            .addText(`🔄 Введите сумму для поля "${fieldLabel}":`)
+            .addText(`${fieldIcon} Введите сумму для поля "${fieldLabel}":`)
             .newLine(2);
     }
     

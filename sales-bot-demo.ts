@@ -97,10 +97,19 @@ const mainLoop = async () => {
                                 }
                             }
                             
-                            // Send new input instruction message
+                            // Determine the icon for the field
+                            let fieldIcon = "";
+                            if (state.editingField === "revenue") fieldIcon = "💰";
+                            else if (state.editingField === "cash") fieldIcon = "💵";
+                            else if (state.editingField === "card") fieldIcon = "💳";
+                            else if (state.editingField === "qr") fieldIcon = "📱";
+                            else if (state.editingField === "transfer") fieldIcon = "🔄";
+                            else if (state.editingField === "returns") fieldIcon = "↩️";
+                            
+                            // Send new input instruction message with icon
                             const inputMessage = await client.sendMessage({
                                 chat_id: chatId,
-                                text: `Введите сумму для поля "${fieldPrompt}":`
+                                text: `${fieldIcon} Введите сумму для поля "${fieldPrompt}":`
                             });
                             
                             // Update state with all new values
@@ -187,7 +196,16 @@ const mainLoop = async () => {
                         }
                         
                         if (nextField) {
-                            // Send new input instruction message
+                            // Determine the icon for the field
+                            let fieldIcon = "";
+                            if (nextField === "revenue") fieldIcon = "💰";
+                            else if (nextField === "cash") fieldIcon = "💵";
+                            else if (nextField === "card") fieldIcon = "💳";
+                            else if (nextField === "qr") fieldIcon = "📱";
+                            else if (nextField === "transfer") fieldIcon = "🔄";
+                            else if (nextField === "returns") fieldIcon = "↩️";
+                            
+                            // Send new input instruction message with icon
                             let fieldPrompt = "";
                             if (nextField === "revenue") fieldPrompt = "общую сумму выручки";
                             else if (nextField === "cash") fieldPrompt = "наличные";
@@ -198,7 +216,7 @@ const mainLoop = async () => {
                             
                             const inputMessage = await client.sendMessage({
                                 chat_id: chatId,
-                                text: `Введите сумму для поля "${fieldPrompt}":`
+                                text: `${fieldIcon} Введите сумму для поля "${fieldPrompt}":`
                             });
                             
                             // Update state with all new values and set next field to edit
@@ -313,10 +331,10 @@ const mainLoop = async () => {
                         // Show the empty form
                         const formMessage = await Views.showReportForm(client, chatId, messageId, initialReportData, "card");
                         
-                        // Send first input instruction - for the card field
+                        // Send first input instruction - for the card field with icon
                         const inputMessage = await client.sendMessage({
                             chat_id: chatId,
-                            text: 'Введите сумму для поля "безналичный расчет":'
+                            text: '💳 Введите сумму для поля "безналичный расчет":'
                         });
                         
                         // Update state completely
@@ -396,10 +414,19 @@ const mainLoop = async () => {
                             }
                         }
                         
-                        // Send new input instruction message
+                        // Determine the icon for the field
+                        let fieldIcon = "";
+                        if (fieldToEdit === "revenue") fieldIcon = "💰";
+                        else if (fieldToEdit === "cash") fieldIcon = "💵";
+                        else if (fieldToEdit === "card") fieldIcon = "💳";
+                        else if (fieldToEdit === "qr") fieldIcon = "📱";
+                        else if (fieldToEdit === "transfer") fieldIcon = "🔄";
+                        else if (fieldToEdit === "returns") fieldIcon = "↩️";
+                        
+                        // Send new input instruction message with icon
                         const inputMessage = await client.sendMessage({
                             chat_id: chatId,
-                            text: `Введите сумму для поля "${fieldPrompt}":`
+                            text: `${fieldIcon} Введите сумму для поля "${fieldPrompt}":`
                         });
                         
                         // Update state with all new values
