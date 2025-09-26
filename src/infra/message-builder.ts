@@ -14,6 +14,11 @@ export class MessageBuilder {
 		return this;
 	}
 
+    addBold(text: string): MessageBuilder {
+        this.parts.push(`*${MessageBuilder.escapeMarkdownV2(text)}*`);
+        return this;
+    }
+
 	addParagraph(text: string): MessageBuilder {
 		this.parts.push(MessageBuilder.escapeMarkdownV2(text));
 		return this;
@@ -40,6 +45,6 @@ export class MessageBuilder {
 	}
 
 	build(): string {
-		return this.parts.join(""); // FIX: Join with empty string, not newline
+		return this.parts.join("");
 	}
 }
