@@ -110,7 +110,10 @@ const mainLoop = async () => {
                     conversationStates.set(chatId, { ...state, messageId });
 
                     if (data === "back_to_seller_menu") await Views.showSellerMenu(client, chatId, messageId);
+                    else if (data === "back_to_supervisor_menu") await Views.showSupervisorMenu(client, chatId, messageId);
+                    else if (data === "back_to_manager_menu") await Views.showManagerMenu(client, chatId, messageId);
                     else if (data === "seller_start_shift") await Views.showStoreSelection(client, chatId, messageId);
+                    else if (data === "seller_my_stats") await Views.showSellerMyStats(client, chatId, messageId);
                     else if (data.startsWith("select_store_")) {
                         const storeName = "Mock Store"; // In real life, we'd look this up
                         conversationStates.set(chatId, { ...state, step: "ON_SHIFT" });
@@ -118,23 +121,27 @@ const mainLoop = async () => {
                     }
                     else if (data === "seller_end_shift") {
                         conversationStates.set(chatId, { ...state, step: "AWAITING_REVENUE", photosUploaded: 0 });
-                        await Views.askForRevenue(client, chatId, messageId);
+                        await Views.askForRevenue(client, chatId, undefined); // Send new message
                     }
                     else if (data === "report_confirm") {
                         console.log(`[${chatId}] Report confirmed:`, state.reportData);
-                        await Views.showShiftEndMessage(client, chatId, messageId);
+                        await Views.showShiftEndMessage(client, chatId, undefined); // Send new message
                         conversationStates.delete(chatId);
                     }
                     else if (data === "report_edit") {
                         // Restart the report flow
                         conversationStates.set(chatId, { ...state, step: "AWAITING_REVENUE", photosUploaded: 0, reportData: {} });
-                        await Views.askForRevenue(client, chatId, messageId);
+                        await Views.askForRevenue(client, chatId, undefined); // Send new message
                     }
                     else if (data === "seller_emergency_close") {
                         conversationStates.set(chatId, { ...state, step: "AWAITING_EMERGENCY_REVENUE" });
-                        await Views.showEmergencyClosePrompt(client, chatId, messageId);
+                        await Views.showEmergencyClosePrompt(client, chatId, undefined); // Send new message
                     }
-                    else if (data.includes("_stats") || data.includes("_materials")) {
+                    else if (data === "sup_store_stats") await Views.showSupervisorStoreStats(client, chatId, messageId);
+                    else if (data === "sup_seller_stats") await Views.showSupervisorSellerStats(client, chatId, messageId);
+                    else if (data === "man_store_stats") await Views.showManagerStoreStats(client, chatId, messageId);
+                    else if (data === "man_seller_stats") await Views.showManagerSellerStats(client, chatId, messageId);
+                    else if (data.includes("_materials")) {
                         await Views.showInDevelopment(client, update.callback_query.id);
                     }
 

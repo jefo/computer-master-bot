@@ -173,13 +173,99 @@ export const showShiftEndMessage = async (client: TelegramClient, chatId: number
     return sentMessage;
 };
 
-export const showEmergencyClosePrompt = async (client: TelegramClient, chatId: number, messageId: number) => {
+export const showEmergencyClosePrompt = async (client: TelegramClient, chatId: number, messageId?: number) => {
     const text = new MessageBuilder()
         .addText("🏃 Экстренное закрытие. Введите ")
         .addBold("актуальный показатель выручки")
         .addText(" на момент ухода:")
         .build();
     return sendOrEdit(client, chatId, text, { inline_keyboard: [] }, messageId);
+};
+
+// --- Seller Stats ---
+export const showSellerMyStats = async (client: TelegramClient, chatId: number, messageId?: number) => {
+    const builder = new MessageBuilder()
+        .addTitle("📊 Ваши показатели за текущий месяц")
+        .newLine(2)
+        .addListItem("Дата: 01.01.2024 - 31.01.2024")
+        .addListItem("Смен отработано: 20")
+        .addListItem("Наработано выручки: 250 000 руб.")
+        .addListItem("Индивидуальный план: 500 000 руб.")
+        .addListItem("Осталось до плана: 250 000 руб. (50%)")
+        .newLine(2)
+        .addText("\(Данные обновляются ежедневно\)");
+
+    const keyboard: InlineKeyboardMarkup = {
+        inline_keyboard: [
+            [{ text: "⬅️ Назад", callback_data: "back_to_seller_menu" }],
+        ],
+    };
+    return sendOrEdit(client, chatId, builder.build(), keyboard, messageId);
+};
+
+// --- Supervisor/Manager Stats ---
+const generateStoreStatsText = (storeName: string, currentRevenue: number, plan: number): string => {
+    const remaining = plan - currentRevenue;
+    const percentage = (currentRevenue / plan * 100).toFixed(0);
+    const builder = new MessageBuilder()
+        .addTitle(`📈 Показатели по точке: ${storeName}`)
+        .newLine(2)
+        .addListItem(`Сумма выручки на данный момент: ${currentRevenue} руб.`)
+        .addListItem(`План поставленный для точки: ${plan} руб.`)
+        .addListItem(`До выполнения плана требуется: ${remaining} руб. (${percentage}%)`);
+    return builder.build();
+};
+
+const generateSellerStatsText = (sellerName: string, currentRevenue: number, plan: number): string => {
+    const remaining = plan - currentRevenue;
+    const percentage = (currentRevenue / plan * 100).toFixed(0);
+    const builder = new MessageBuilder()
+        .addTitle(`👥 Показатели продавца: ${sellerName}`)
+        .newLine(2)
+        .addListItem(`Наработано выручки: ${currentRevenue} руб.`)
+        .addListItem(`Индивидуальный план: ${plan} руб.`)
+        .addListItem(`Осталось до плана: ${remaining} руб. (${percentage}%)`);
+    return builder.build();
+};
+
+export const showSupervisorStoreStats = async (client: TelegramClient, chatId: number, messageId?: number) => {
+    const text = generateStoreStatsText("ТЦ 'Галерея'", 150000, 500000);
+    const keyboard: InlineKeyboardMarkup = {
+        inline_keyboard: [
+            [{ text: "⬅️ Назад", callback_data: "back_to_supervisor_menu" }],
+        ],
+    };
+    return sendOrEdit(client, chatId, text, keyboard, messageId);
+};
+
+export const showSupervisorSellerStats = async (client: TelegramClient, chatId: number, messageId?: number) => {
+    const text = generateSellerStatsText("Иванов И.И.", 120000, 300000);
+    const keyboard: InlineKeyboardMarkup = {
+        inline_keyboard: [
+            [{ text: "⬅️ Назад", callback_data: "back_to_supervisor_menu" }],
+        ],
+    };
+    return sendOrEdit(client, chatId, text, keyboard, messageId);
+};
+
+export const showManagerStoreStats = async (client: TelegramClient, chatId: number, messageId?: number) => {
+    const text = generateStoreStatsText("Все точки", 800000, 2000000);
+    const keyboard: InlineKeyboardMarkup = {
+        inline_keyboard: [
+            [{ text: "⬅️ Назад", callback_data: "back_to_manager_menu" }],
+        ],
+    };
+    return sendOrEdit(client, chatId, text, keyboard, messageId);
+};
+
+export const showManagerSellerStats = async (client: TelegramClient, chatId: number, messageId?: number) => {
+    const text = generateSellerStatsText("Все продавцы", 750000, 1800000);
+    const keyboard: InlineKeyboardMarkup = {
+        inline_keyboard: [
+            [{ text: "⬅️ Назад", callback_data: "back_to_manager_menu" }],
+        ],
+    };
+    return sendOrEdit(client, chatId, text, keyboard, messageId);
 };
 
 // --- Placeholder Screens ---
