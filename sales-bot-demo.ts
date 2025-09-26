@@ -4,7 +4,8 @@ import * as Views from "./src/views/sales-bot-views";
 // --- Simple In-Memory State ---
 interface ConversationState {
     step: string;
-    messageId?: number;
+    messageId?: number;        // ID of the main form message
+    inputMessageId?: number;   // ID of the input instruction message
     reportData?: any;
     photosUploaded?: number;
     editingField?: string; // Field being edited (for inline editing)
@@ -62,7 +63,10 @@ const mainLoop = async () => {
                                 chat_id: chatId,
                                 text: "❌ Пожалуйста, введите корректное числовое значение (только цифры и десятичный разделитель)."
                             });
-                            // Send informational message again about which field to enter
+                            // Show the form with editing instructions again
+                            await Views.showReportForm(client, chatId, state.messageId, reportData, state.editingField);
+                            
+                            // Resend input instruction
                             let fieldPrompt = "";
                             if (state.editingField === "revenue") fieldPrompt = "общую сумму выручки";
                             else if (state.editingField === "cash") fieldPrompt = "наличные";
@@ -71,15 +75,48 @@ const mainLoop = async () => {
                             else if (state.editingField === "transfer") fieldPrompt = "переводом";
                             else if (state.editingField === "returns") fieldPrompt = "возвраты";
                             
-                            await client.sendMessage({
+                            // Delete the previous input instruction message if exists
+                            if (state.inputMessageId) {
+                                try {
+                                    await client.deleteMessage({ 
+                                        chat_id: chatId, 
+                                        message_id: state.inputMessageId 
+                                    });
+                                } catch (e) {
+                                    // Message might not exist or already be deleted, ignore error
+                                }
+                            }
+                            
+                            // Send new input instruction message
+                            const inputMessage = await client.sendMessage({
                                 chat_id: chatId,
                                 text: `Введите сумму для поля "${fieldPrompt}":`
+                            });
+                            
+                            // Update state with new input message ID
+                            conversationStates.set(chatId, { 
+                                ...state, 
+                                inputMessageId: inputMessage.message_id
                             });
                             continue; // Skip further processing and wait for new input
                         }
                         
                         // Update the specific field
                         reportData[state.editingField] = numberValue;
+                        
+                        // Send confirmation message for the entered value
+                        let fieldLabel = "";
+                        if (state.editingField === "revenue") fieldLabel = "Общая выручка";
+                        else if (state.editingField === "cash") fieldLabel = "Наличные";
+                        else if (state.editingField === "card") fieldLabel = "Безналичный расчет";
+                        else if (state.editingField === "qr") fieldLabel = "Оплата по QR-коду";
+                        else if (state.editingField === "transfer") fieldLabel = "Переводом";
+                        else if (state.editingField === "returns") fieldLabel = "Возвраты";
+                        
+                        await client.sendMessage({
+                            chat_id: chatId,
+                            text: `✅ ${fieldLabel}: ${numberValue.toLocaleString('ru-RU')} руб.`
+                        });
                         
                         // Clear the editing field state but keep in REPORT_FORM step
                         conversationStates.set(chatId, { 
@@ -92,7 +129,56 @@ const mainLoop = async () => {
                         
                         // Show the updated report form (if still in form step)
                         if (state.step === "REPORT_FORM") {
-                            await Views.showReportForm(client, chatId, state.messageId, reportData);
+                            await Views.showReportForm(client, chatId, state.messageId, reportData, undefined);
+                        }
+                        
+                        // Find next field to edit (the first one that is not filled)
+                        let nextField = null;
+                        if (reportData.cash === undefined) nextField = "cash";
+                        else if (reportData.card === undefined) nextField = "card";
+                        else if (reportData.qr === undefined) nextField = "qr";
+                        else if (reportData.transfer === undefined) nextField = "transfer";
+                        else if (reportData.returns === undefined) nextField = "returns";
+                        
+                        // Delete the previous input instruction message if exists
+                        if (state.inputMessageId) {
+                            try {
+                                await client.deleteMessage({ 
+                                    chat_id: chatId, 
+                                    message_id: state.inputMessageId 
+                                });
+                            } catch (e) {
+                                // Message might not exist or already be deleted, ignore error
+                            }
+                        }
+                        
+                        if (nextField) {
+                            // Send new input instruction message
+                            let fieldPrompt = "";
+                            if (nextField === "revenue") fieldPrompt = "общую сумму выручки";
+                            else if (nextField === "cash") fieldPrompt = "наличные";
+                            else if (nextField === "card") fieldPrompt = "безналичный расчет";
+                            else if (nextField === "qr") fieldPrompt = "оплату по QR-коду";
+                            else if (nextField === "transfer") fieldPrompt = "переводом";
+                            else if (nextField === "returns") fieldPrompt = "возвраты";
+                            
+                            const inputMessage = await client.sendMessage({
+                                chat_id: chatId,
+                                text: `Введите сумму для поля "${fieldPrompt}":`
+                            });
+                            
+                            // Update state with new input message ID and set next field to edit
+                            conversationStates.set(chatId, { 
+                                ...state, 
+                                editingField: nextField,
+                                inputMessageId: inputMessage.message_id
+                            });
+                        } else {
+                            // All fields are filled, no need for input message
+                            conversationStates.set(chatId, { 
+                                ...state, 
+                                inputMessageId: undefined
+                            });
                         }
                         continue;
                     }
@@ -186,9 +272,51 @@ const mainLoop = async () => {
                                 qr: undefined,
                                 transfer: undefined,
                                 returns: undefined
-                            }
+                            },
+                            inputMessageId: undefined // Initially no input message
                         });
-                        await Views.showReportForm(client, chatId, messageId, {}); // Show empty form
+                        
+                        // Show the empty form
+                        const formMessage = await Views.showReportForm(client, chatId, messageId, {
+                            revenue: undefined,
+                            cash: undefined,
+                            card: undefined,
+                            qr: undefined,
+                            transfer: undefined,
+                            returns: undefined
+                        });
+                        
+                        // Update the state with the form message ID
+                        conversationStates.set(chatId, { 
+                            ...state, 
+                            step: "REPORT_FORM", 
+                            messageId: formMessage.message_id,
+                            reportData: {
+                                revenue: undefined,
+                                cash: undefined,
+                                card: undefined,
+                                qr: undefined,
+                                transfer: undefined,
+                                returns: undefined
+                            },
+                            inputMessageId: undefined
+                        });
+                        
+                        // Send first input instruction - for the card field
+                        const inputMessage = await client.sendMessage({
+                            chat_id: chatId,
+                            text: 'Введите сумму для поля "безналичный расчет":'
+                        });
+                        
+                        // Update state with the input message ID and set to edit card
+                        const updatedState = conversationStates.get(chatId);
+                        if (updatedState) {
+                            conversationStates.set(chatId, {
+                                ...updatedState,
+                                inputMessageId: inputMessage.message_id,
+                                editingField: "card"
+                            });
+                        }
                     }
                     else if (data === "report_confirm") {
                         console.log(`[${chatId}] Report confirmed:`, state.reportData);
@@ -222,7 +350,10 @@ const mainLoop = async () => {
                         
                         console.log(`[${chatId}] Setting editing field: ${fieldToEdit}, state:`, conversationStates.get(chatId));
                         
-                        // Send an informational message about which field to enter
+                        // Update the form message (if it exists)
+                        await Views.showReportForm(client, chatId, state.messageId, state.reportData, fieldToEdit);
+                        
+                        // Send or update the input instruction message
                         let fieldPrompt = "";
                         if (fieldToEdit === "revenue") fieldPrompt = "общую сумму выручки";
                         else if (fieldToEdit === "cash") fieldPrompt = "наличные";
@@ -231,9 +362,29 @@ const mainLoop = async () => {
                         else if (fieldToEdit === "transfer") fieldPrompt = "переводом";
                         else if (fieldToEdit === "returns") fieldPrompt = "возвраты";
                         
-                        await client.sendMessage({
+                        // Delete the previous input instruction message if exists
+                        if (state.inputMessageId) {
+                            try {
+                                await client.deleteMessage({ 
+                                    chat_id: chatId, 
+                                    message_id: state.inputMessageId 
+                                });
+                            } catch (e) {
+                                // Message might not exist or already be deleted, ignore error
+                            }
+                        }
+                        
+                        // Send new input instruction message
+                        const inputMessage = await client.sendMessage({
                             chat_id: chatId,
                             text: `Введите сумму для поля "${fieldPrompt}":`
+                        });
+                        
+                        // Update state with new input message ID
+                        conversationStates.set(chatId, { 
+                            ...state, 
+                            editingField: fieldToEdit,
+                            inputMessageId: inputMessage.message_id
                         });
                     }
                     else if (data === "seller_emergency_close") {

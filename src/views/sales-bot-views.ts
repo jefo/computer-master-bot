@@ -462,7 +462,7 @@ export const showManagerSellerStats = async (client: TelegramClient, chatId: num
 // --- Placeholder Screens ---
 
 // --- Report Form ---
-export const showReportForm = async (client: TelegramClient, chatId: number, messageId: number | undefined, reportData: any) => {
+export const showReportForm = async (client: TelegramClient, chatId: number, messageId: number | undefined, reportData: any, editingField?: string) => {
     // Status indicators
     const cashStatus = (reportData.cash !== undefined && reportData.cash !== '') ? '✅' : '☑️';
     const cardStatus = (reportData.card !== undefined && reportData.card !== '') ? '✅' : '☑️';
@@ -502,7 +502,23 @@ export const showReportForm = async (client: TelegramClient, chatId: number, mes
         .addTitle("📋 Форма отчета за смену")
         .newLine(2)
         .addBold("Пожалуйста, заполните все поля:")
-        .newLine(2)
+        .newLine(2);
+    
+    // Add special instruction if a field is being edited
+    if (editingField) {
+        let fieldLabel = "";
+        if (editingField === "cash") fieldLabel = "наличные";
+        else if (editingField === "card") fieldLabel = "безналичный расчет";
+        else if (editingField === "qr") fieldLabel = "оплату по QR-коду";
+        else if (editingField === "transfer") fieldLabel = "переводом";
+        else if (editingField === "returns") fieldLabel = "возвраты";
+        
+        builder
+            .addText(`🔄 Введите сумму для поля "${fieldLabel}":`)
+            .newLine(2);
+    }
+    
+    builder
         .addText(`${cardStatus} 💳 Безналичный расчет: ${cardValue}`)
         .newLine()
         .addText(`${cashStatus} 💵 Наличные: ${cashValue}`)
