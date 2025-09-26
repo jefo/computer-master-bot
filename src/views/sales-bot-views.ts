@@ -161,23 +161,40 @@ export const askForPhotos = async (client: TelegramClient, chatId: number, messa
 };
 
 export const showReportReview = async (client: TelegramClient, chatId: number, messageId: number, reportData: any) => {
+    // Calculate total revenue
+    const totalRevenue = (reportData.revenue || 0) + (reportData.returns || 0); // Adding returns back to revenue
+    
     const builder = new MessageBuilder()
-        .addTitle("Проверьте ваш отчет")
+        .addTitle("📋 Подтверждение отчета")
         .newLine(2)
-        .addListItem(`Выручка: ${reportData.revenue || '10000'} руб.`)
-        .addListItem(`Наличные: ${reportData.cash || '2000'} руб.`)
-        .addListItem(`Безнал: ${reportData.card || '5000'} руб.`)
-        .addListItem(`QR-код: ${reportData.qr || '1500'} руб.`)
-        .addListItem(`Перевод: ${reportData.transfer || '1500'} руб.`)
-        .addListItem(`Возвраты: ${reportData.returns || '0'} руб.`)
+        .addBold("Детализация по видам оплаты:")
         .newLine()
-        .addText("Прикреплено 4 фото.")
+        .addListItem(`💳 Безналичный расчет: ${(reportData.card || '5000').toLocaleString('ru-RU')} руб.`)
+        .addListItem(`💵 Наличные: ${(reportData.cash || '2000').toLocaleString('ru-RU')} руб.`)
+        .addListItem(`📱 Оплата по QR-коду: ${(reportData.qr || '1500').toLocaleString('ru-RU')} руб.`)
+        .addListItem(`🔄 Переводом: ${(reportData.transfer || '1500').toLocaleString('ru-RU')} руб.`)
+        .newLine()
+        .addBold("Возвраты:")
+        .newLine()
+        .addListItem(`↩️ Возвраты: ${(reportData.returns || '0').toLocaleString('ru-RU')} руб.`)
+        .newLine(2)
+        .addBold(`💰 Общая выручка: ${totalRevenue.toLocaleString('ru-RU')} руб.`)
+        .newLine(2)
+        .addText("📸 Приложено 4 фото-подтверждения:")
+        .newLine()
+        .addText("• Фото подписи на конверте")
+        .newLine()
+        .addText("• Фото сводных чеков")
+        .newLine()
+        .addText("• Фото конверта с содержимым") 
+        .newLine()
+        .addText("• Фото запечатанного конверта")
         .newLine(2)
         .addText("Все верно?");
 
     const keyboard: InlineKeyboardMarkup = {
         inline_keyboard: [
-            [{ text: "✅ Да, завершить смену", callback_data: "report_confirm" }],
+            [{ text: "✅ Подтвердить и завершить", callback_data: "report_confirm" }],
             [{ text: "✏️ Редактировать отчет", callback_data: "report_edit" }],
         ],
     };
