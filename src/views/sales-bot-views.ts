@@ -461,6 +461,59 @@ export const showManagerSellerStats = async (client: TelegramClient, chatId: num
 
 // --- Placeholder Screens ---
 
+// --- Report Summary with Edit Options ---
+export const showReportSummary = async (client: TelegramClient, chatId: number, messageId: number | undefined, reportData: any) => {
+    const cash = Number(reportData.cash) || 0;
+    const card = Number(reportData.card) || 0;
+    const qr = Number(reportData.qr) || 0;
+    const transfer = Number(reportData.transfer) || 0;
+    const returns = Number(reportData.returns) || 0;
+    
+    const totalRevenue = cash + card + qr + transfer - returns;
+    
+    const builder = new MessageBuilder()
+        .addTitle("📋 Сводка отчета")
+        .newLine(2)
+        .addBold("Текущие значения:")
+        .newLine(2)
+        .addText(`💳 Безналичный расчет: ${card.toLocaleString('ru-RU')} руб.`)
+        .newLine()
+        .addText(`💵 Наличные: ${cash.toLocaleString('ru-RU')} руб.`)
+        .newLine()
+        .addText(`📱 Оплата по QR-коду: ${qr.toLocaleString('ru-RU')} руб.`)
+        .newLine()
+        .addText(`🔄 Переводом: ${transfer.toLocaleString('ru-RU')} руб.`)
+        .newLine()
+        .addText(`↩️ Возвраты: ${returns.toLocaleString('ru-RU')} руб.`)
+        .newLine(2)
+        .addBold(`💰 Общая выручка: ${totalRevenue.toLocaleString('ru-RU')} руб.`)
+        .newLine(2)
+        .addText("Для редактирования нажмите кнопку ниже.");
+
+    // Create keyboard with edit buttons for each field
+    const keyboard: InlineKeyboardMarkup = {
+        inline_keyboard: [
+            [
+                { text: "💳 Безнал", callback_data: "edit_card" },
+                { text: "💵 Наличные", callback_data: "edit_cash" },
+                { text: "📱 QR-код", callback_data: "edit_qr" }
+            ],
+            [
+                { text: "🔄 Перевод", callback_data: "edit_transfer" },
+                { text: "↩️ Возвраты", callback_data: "edit_returns" }
+            ],
+            [
+                { text: "✅ Подтвердить", callback_data: "report_summary_confirm" },
+                { text: "🔄 Ввести заново", callback_data: "report_edit" }
+            ],
+            [
+                { text: "⬅️ Назад", callback_data: "back_to_seller_menu" }
+            ]
+        ],
+    };
+    return sendOrEdit(client, chatId, builder.build(), keyboard, messageId);
+};
+
 // --- Work Materials Section ---
 export const showWorkMaterialsMenu = async (client: TelegramClient, chatId: number, messageId?: number) => {
     const text = new MessageBuilder()

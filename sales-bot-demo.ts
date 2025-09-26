@@ -7,6 +7,7 @@ interface ConversationState {
     messageId?: number;
     reportData?: any;
     photosUploaded?: number;
+    editingField?: string; // Field being edited (for inline editing)
 }
 const conversationStates = new Map<number, ConversationState>();
 
@@ -52,7 +53,41 @@ const mainLoop = async () => {
                     if (state.step.startsWith("AWAITING_")) {
                         const reportData = state.reportData || {};
                         
-                        // Validate that the input is a number
+                        // Check if we're in editing mode for a specific field
+                        if (state.editingField) {
+                            // Validate that the input is a number
+                            const numberValue = parseFloat(text.replace(/[^\d.,-]/g, ''));
+                            if (isNaN(numberValue) || numberValue < 0) {
+                                await client.sendMessage({
+                                    chat_id: chatId,
+                                    text: "❌ Пожалуйста, введите корректное числовое значение (только цифры и десятичный разделитель)."
+                                });
+                                // Re-ask for the same input without advancing the state
+                                if (state.editingField === "revenue") await Views.askForRevenue(client, chatId, undefined);
+                                else if (state.editingField === "cash") await Views.askForCashAmount(client, chatId, undefined);
+                                else if (state.editingField === "card") await Views.askForCardAmount(client, chatId, undefined);
+                                else if (state.editingField === "qr") await Views.askForQrAmount(client, chatId, undefined);
+                                else if (state.editingField === "transfer") await Views.askForTransferAmount(client, chatId, undefined);
+                                else if (state.editingField === "returns") await Views.askForReturnsAmount(client, chatId, undefined);
+                                continue; // Skip further processing and wait for new input
+                            }
+                            
+                            // Update the specific field
+                            reportData[state.editingField] = numberValue;
+                            
+                            // Clear the editing field state
+                            conversationStates.set(chatId, { 
+                                ...state, 
+                                reportData,
+                                editingField: undefined
+                            });
+                            
+                            // Show the updated report summary with edit options
+                            await Views.showReportSummary(client, chatId, undefined, reportData);
+                            continue;
+                        }
+                        
+                        // Validate that the input is a number (for normal flow)
                         const numberValue = parseFloat(text.replace(/[^\d.,-]/g, ''));
                         if (isNaN(numberValue) || numberValue < 0) {
                             await client.sendMessage({
@@ -99,13 +134,12 @@ const mainLoop = async () => {
                         }
                         else if (state.step === "AWAITING_RETURNS") { 
                             reportData.returns = numberValue; 
-                            // Send a NEW message asking for photos, don't save messageId as we won't edit it.
-                            await Views.askForPhotos(client, chatId, undefined, 0);
+                            // Show report summary with edit options before proceeding to photos
+                            await Views.showReportSummary(client, chatId, undefined, reportData);
                             conversationStates.set(chatId, {
                                 ...state,
-                                step: "AWAITING_PHOTOS",
+                                step: "REPORT_SUMMARY", // New step for summary review
                                 reportData,
-                                photosUploaded: 0,
                             });
                              continue;
                         }
@@ -126,6 +160,11 @@ const mainLoop = async () => {
                         }
                         conversationStates.set(chatId, { ...state, step: nextStep, reportData });
                         continue; // Continue to next update
+                    }
+                    // Handle REPORT_SUMMARY step
+                    else if (state.step === "REPORT_SUMMARY") {
+                        // This case will be handled by callback queries only, not text messages
+                        continue; // Skip text processing in this state, wait for callback
                     }
                 }
 
@@ -162,12 +201,6 @@ const mainLoop = async () => {
                     else if (data === "back_to_manager_menu") await Views.showManagerMenu(client, chatId, messageId);
                     else if (data === "seller_start_shift") await Views.showStoreSelection(client, chatId, messageId);
                     else if (data === "seller_my_stats") await Views.showSellerMyStats(client, chatId, messageId);
-                    else if (data === "seller_monthly_archive") await Views.showSellerMonthlyArchive(client, chatId, messageId);
-                    else if (data === "seller_work_materials") await Views.showWorkMaterialsMenu(client, chatId, messageId);
-                    else if (data === "work_materials_menu") await Views.showWorkMaterialsMenu(client, chatId, messageId);
-                    else if (data === "work_materials_regulations") await Views.showWorkMaterialsByCategory(client, chatId, "regulations", messageId);
-                    else if (data === "work_materials_info") await Views.showWorkMaterialsByCategory(client, chatId, "materials", messageId);
-                    else if (data === "work_materials_scripts") await Views.showWorkMaterialsByCategory(client, chatId, "scripts", messageId);
                     else if (data.startsWith("select_store_")) {
                         const storeName = "Mock Store"; // In real life, we'd look this up
                         conversationStates.set(chatId, { ...state, step: "ON_SHIFT" });
@@ -187,6 +220,34 @@ const mainLoop = async () => {
                         conversationStates.set(chatId, { ...state, step: "AWAITING_REVENUE", photosUploaded: 0, reportData: {} });
                         await Views.askForRevenue(client, chatId, undefined); // Send new message
                     }
+                    else if (data === "report_summary_confirm") {
+                        // After confirming the summary, proceed to photo uploads
+                        await Views.askForPhotos(client, chatId, undefined, 0);
+                        conversationStates.set(chatId, {
+                            ...state,
+                            step: "AWAITING_PHOTOS",
+                            photosUploaded: 0,
+                        });
+                    }
+                    // Handle inline editing requests
+                    else if (data.startsWith("edit_")) {
+                        // Extract field to edit (e.g., "edit_revenue", "edit_cash", etc.)
+                        const fieldToEdit = data.substring(5); // Remove "edit_" prefix
+                        
+                        // Set the editing field in state
+                        conversationStates.set(chatId, { 
+                            ...state, 
+                            editingField: fieldToEdit 
+                        });
+                        
+                        // Ask for the specific value to edit
+                        if (fieldToEdit === "revenue") await Views.askForRevenue(client, chatId, messageId);
+                        else if (fieldToEdit === "cash") await Views.askForCashAmount(client, chatId, messageId);
+                        else if (fieldToEdit === "card") await Views.askForCardAmount(client, chatId, messageId);
+                        else if (fieldToEdit === "qr") await Views.askForQrAmount(client, chatId, messageId);
+                        else if (fieldToEdit === "transfer") await Views.askForTransferAmount(client, chatId, messageId);
+                        else if (fieldToEdit === "returns") await Views.askForReturnsAmount(client, chatId, messageId);
+                    }
                     else if (data === "seller_emergency_close") {
                         conversationStates.set(chatId, { ...state, step: "AWAITING_EMERGENCY_REVENUE" });
                         await Views.showEmergencyClosePrompt(client, chatId, undefined); // Send new message
@@ -195,9 +256,6 @@ const mainLoop = async () => {
                     else if (data === "sup_seller_stats") await Views.showSupervisorSellerStats(client, chatId, messageId);
                     else if (data === "man_store_stats") await Views.showManagerStoreStats(client, chatId, messageId);
                     else if (data === "man_seller_stats") await Views.showManagerSellerStats(client, chatId, messageId);
-                    else if (data === "seller_work_materials" || data === "sup_work_materials" || data === "man_work_materials") {
-                        await Views.showWorkMaterialsMenu(client, chatId, messageId);
-                    }
                     else if (data.includes("_materials")) {
                         await Views.showInDevelopment(client, update.callback_query.id);
                     }
