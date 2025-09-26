@@ -114,6 +114,12 @@ const mainLoop = async () => {
                     else if (data === "back_to_manager_menu") await Views.showManagerMenu(client, chatId, messageId);
                     else if (data === "seller_start_shift") await Views.showStoreSelection(client, chatId, messageId);
                     else if (data === "seller_my_stats") await Views.showSellerMyStats(client, chatId, messageId);
+                    else if (data === "seller_monthly_archive") await Views.showSellerMonthlyArchive(client, chatId, messageId);
+                    else if (data === "seller_work_materials") await Views.showWorkMaterialsMenu(client, chatId, messageId);
+                    else if (data === "work_materials_menu") await Views.showWorkMaterialsMenu(client, chatId, messageId);
+                    else if (data === "work_materials_regulations") await Views.showWorkMaterialsByCategory(client, chatId, "regulations", messageId);
+                    else if (data === "work_materials_info") await Views.showWorkMaterialsByCategory(client, chatId, "materials", messageId);
+                    else if (data === "work_materials_scripts") await Views.showWorkMaterialsByCategory(client, chatId, "scripts", messageId);
                     else if (data.startsWith("select_store_")) {
                         const storeName = "Mock Store"; // In real life, we'd look this up
                         conversationStates.set(chatId, { ...state, step: "ON_SHIFT" });
@@ -141,6 +147,9 @@ const mainLoop = async () => {
                     else if (data === "sup_seller_stats") await Views.showSupervisorSellerStats(client, chatId, messageId);
                     else if (data === "man_store_stats") await Views.showManagerStoreStats(client, chatId, messageId);
                     else if (data === "man_seller_stats") await Views.showManagerSellerStats(client, chatId, messageId);
+                    else if (data === "seller_work_materials" || data === "sup_work_materials" || data === "man_work_materials") {
+                        await Views.showWorkMaterialsMenu(client, chatId, messageId);
+                    }
                     else if (data.includes("_materials")) {
                         await Views.showInDevelopment(client, update.callback_query.id);
                     }

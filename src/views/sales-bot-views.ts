@@ -1,13 +1,21 @@
 import type { TelegramClient } from "packages/telegram-client";
 import type { InlineKeyboardMarkup, Message } from "packages/telegram-client/telegram-types";
 import { MessageBuilder } from "@src/infra/message-builder";
+import { 
+  getSellerById, 
+  getShiftsForSeller, 
+  getMonthlyStatsForSeller, 
+  getStoreById,
+  getMaterialsByCategory,
+  MOCK_WORK_MATERIALS,
+  MOCK_SELLERS,
+  MOCK_STORES,
+  Seller,
+  MonthlyStats,
+  WorkMaterial
+} from "@src/app/mock-data";
 
-// --- Mock Data ---
-const MOCK_STORES = [
-    { id: "store_1", name: "ТЦ 'Галерея'" },
-    { id: "store_2", name: "ТРК 'Планета'" },
-    { id: "store_3", name: "ул. Красная, 105" },
-];
+
 
 // --- Generic Helper ---
 async function sendOrEdit(client: TelegramClient, chatId: number, text: string, keyboard: InlineKeyboardMarkup, messageId?: number): Promise<Message> {
@@ -62,8 +70,7 @@ export const showManagerMenu = async (client: TelegramClient, chatId: number, me
 
 export const showStoreSelection = async (client: TelegramClient, chatId: number, messageId: number) => {
     const text = new MessageBuilder().addText("Выберите вашу торговую точку:").build();
-    const storeButtons = MOCK_STORES.map(store => ([{ text: store.name, callback_data: `select_store_${store.id}` }]));
-    const keyboard: InlineKeyboardMarkup = {
+    const storeButtons = MOCK_STORES.map(store => ([{ text: store.name, callback_data: `select_store_${store.id}` }]));    const keyboard: InlineKeyboardMarkup = {
         inline_keyboard: [
             ...storeButtons,
             [{ text: "⬅️ Назад", callback_data: "back_to_seller_menu" }],
@@ -86,6 +93,18 @@ export const showActiveShiftMenu = async (client: TelegramClient, chatId: number
     };
     return sendOrEdit(client, chatId, text, keyboard, messageId);
 };
+
+// Helper function to simulate saving with progress indicator
+async function simulateSave(client: TelegramClient, chatId: number, messageId: number | undefined, savingText: string, completionText: string) {
+    // Show saving message
+    const progressMessage = await sendOrEdit(client, chatId, savingText, { inline_keyboard: [] }, messageId);
+    
+    // Simulate a delay to represent processing
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    // Update message to show completion
+    return await sendOrEdit(client, chatId, completionText, { inline_keyboard: [] }, progressMessage.message_id);
+}
 
 export const askForRevenue = async (client: TelegramClient, chatId: number, messageId?: number) => {
     const text = new MessageBuilder()
@@ -166,8 +185,17 @@ export const showReportReview = async (client: TelegramClient, chatId: number, m
 };
 
 export const showShiftEndMessage = async (client: TelegramClient, chatId: number, messageId: number) => {
-    const text = new MessageBuilder().addText("✅ Смена успешно завершена. Спасибо за работу, хорошего отдыха!").build();
-    const sentMessage = await sendOrEdit(client, chatId, text, { inline_keyboard: [] }, messageId);
+    // First, show a "saving" message with progress indicator
+    const progressText = new MessageBuilder().addText("⏳ Сохранение отчета...").build();
+    const progressMessage = await sendOrEdit(client, chatId, progressText, { inline_keyboard: [] }, messageId);
+    
+    // Simulate saving process with a delay
+    await new Promise(resolve => setTimeout(resolve, 1500));
+    
+    // Update message to show completion
+    const completionText = new MessageBuilder().addText("✅ Отчет успешно сохранен! Смена завершена. Спасибо за работу, хорошего отдыха!").build();
+    const sentMessage = await sendOrEdit(client, chatId, completionText, { inline_keyboard: [] }, progressMessage.message_id);
+    
     // Show main menu again after a delay
     setTimeout(() => showSellerMenu(client, chatId), 2000);
     return sentMessage;
@@ -184,91 +212,283 @@ export const showEmergencyClosePrompt = async (client: TelegramClient, chatId: n
 
 // --- Seller Stats ---
 export const showSellerMyStats = async (client: TelegramClient, chatId: number, messageId?: number) => {
+    // For demonstration purposes, we'll use a hardcoded seller ID
+    // In a real implementation, we would get the seller ID from the user session
+    const sellerId = "seller_1";
+    const seller: Seller | undefined = getSellerById(sellerId);
+    
+    if (!seller) {
+        const errorText = new MessageBuilder()
+            .addText("Ошибка: Не удалось получить данные продавца")
+            .build();
+        const keyboard: InlineKeyboardMarkup = {
+            inline_keyboard: [
+                [{ text: "⬅️ Назад", callback_data: "back_to_seller_menu" }],
+            ],
+        };
+        return sendOrEdit(client, chatId, errorText, keyboard, messageId);
+    }
+
+    // Get shifts for this seller
+    const shifts = getShiftsForSeller(sellerId);
+    
     const builder = new MessageBuilder()
-        .addTitle("📊 Ваши показатели за текущий месяц")
+        .addTitle(`📊 Ваши показатели за текущий месяц`)
         .newLine(2)
-        .addListItem("Дата: 01.01.2024 - 31.01.2024")
-        .addListItem("Смен отработано: 20")
-        .addListItem("Наработано выручки: 250 000 руб.")
-        .addListItem("Индивидуальный план: 500 000 руб.")
-        .addListItem("Осталось до плана: 250 000 руб. (50%)")
+        .addListItem(`Дата: ${new Date().toLocaleDateString('ru-RU', { month: 'long', year: 'numeric' })}`)
+        .addListItem(`Смен отработано: ${shifts.length}`)
+        .newLine(2)
+        .addBold("Выполнение плана:")
+        .newLine()
+        .addRawText(createPlanCompletionText(seller.currentRevenue, seller.monthlyPlan))
         .newLine(2)
         .addText("\(Данные обновляются ежедневно\)");
 
     const keyboard: InlineKeyboardMarkup = {
         inline_keyboard: [
+            [{ text: "📅 Архив по месяцам", callback_data: "seller_monthly_archive" }],
             [{ text: "⬅️ Назад", callback_data: "back_to_seller_menu" }],
         ],
     };
     return sendOrEdit(client, chatId, builder.build(), keyboard, messageId);
 };
 
+// Helper function to create a visual progress bar
+function createProgressBar(percentage: number): string {
+    const width = 12;
+    const filledBlocks = Math.min(width, Math.floor(percentage / (100/width)));
+    const emptyBlocks = width - filledBlocks;
+    return `【${'█'.repeat(filledBlocks)}${'░'.repeat(emptyBlocks)}】 ${percentage.toFixed(1)}%`;
+}
+
+// Helper function for displaying plan completion with visual indicators
+function createPlanCompletionText(current: number | undefined, plan: number | undefined): string {
+    // Handle undefined values
+    const currentVal = current ?? 0;
+    const planVal = plan ?? 0;
+    
+    const percentage = planVal > 0 ? (currentVal / planVal * 100) : 0;
+    const remaining = planVal - currentVal;
+    
+    return new MessageBuilder()
+        .addText(`Выручка: ${currentVal.toLocaleString('ru-RU')} руб. из ${planVal.toLocaleString('ru-RU')} руб.`)
+        .newLine()
+        .addText(`Прогресс: ${createProgressBar(percentage)}`)
+        .newLine()
+        .addText(remaining > 0 
+            ? `Осталось: ${Math.max(0, remaining).toLocaleString('ru-RU')} руб.` 
+            : '✅ План выполнен!')
+        .build();
+}
+
+// --- Seller Monthly Archive ---
+export const showSellerMonthlyArchive = async (client: TelegramClient, chatId: number, messageId?: number) => {
+    // For demonstration purposes, we'll use a hardcoded seller ID
+    const sellerId = "seller_1";
+    const monthlyStats = getMonthlyStatsForSeller(sellerId);
+    
+    const builder = new MessageBuilder()
+        .addTitle("📅 Архив по месяцам")
+        .newLine(2);
+
+    if (monthlyStats.length === 0) {
+        builder.addText("Архивные данные отсутствуют");
+    } else {
+        monthlyStats.forEach((monthData: MonthlyStats) => {
+            const monthName = new Date(monthData.month + "-01").toLocaleDateString('ru-RU', { month: 'long', year: 'numeric' });
+            const remaining = monthData.plan - monthData.revenue;
+            const percentage = (monthData.revenue / monthData.plan * 100).toFixed(1);
+            
+            builder
+                .addBold(`${monthName.toUpperCase()}`)
+                .newLine()
+                .addListItem(`Наработано: ${monthData.revenue.toLocaleString('ru-RU')} руб.`)
+                .addListItem(`План: ${monthData.plan.toLocaleString('ru-RU')} руб.`)
+                .addListItem(`Остаток до плана: ${Math.max(0, remaining).toLocaleString('ru-RU')} руб. (${percentage}%)`)
+                .addText(`Прогресс: ${createProgressBar(parseFloat(percentage))}`)
+                .newLine(2);
+        });
+    }
+
+    const keyboard: InlineKeyboardMarkup = {
+        inline_keyboard: [
+            [{ text: "⬅️ Назад", callback_data: "seller_my_stats" }],
+        ],
+    };
+    return sendOrEdit(client, chatId, builder.build(), keyboard, messageId);
+};
+
 // --- Supervisor/Manager Stats ---
-const generateStoreStatsText = (storeName: string, currentRevenue: number, plan: number): string => {
-    const remaining = plan - currentRevenue;
-    const percentage = (currentRevenue / plan * 100).toFixed(0);
-    const builder = new MessageBuilder()
-        .addTitle(`📈 Показатели по точке: ${storeName}`)
-        .newLine(2)
-        .addListItem(`Сумма выручки на данный момент: ${currentRevenue} руб.`)
-        .addListItem(`План поставленный для точки: ${plan} руб.`)
-        .addListItem(`До выполнения плана требуется: ${remaining} руб. (${percentage}%)`);
-    return builder.build();
-};
-
-const generateSellerStatsText = (sellerName: string, currentRevenue: number, plan: number): string => {
-    const remaining = plan - currentRevenue;
-    const percentage = (currentRevenue / plan * 100).toFixed(0);
-    const builder = new MessageBuilder()
-        .addTitle(`👥 Показатели продавца: ${sellerName}`)
-        .newLine(2)
-        .addListItem(`Наработано выручки: ${currentRevenue} руб.`)
-        .addListItem(`Индивидуальный план: ${plan} руб.`)
-        .addListItem(`Осталось до плана: ${remaining} руб. (${percentage}%)`);
-    return builder.build();
-};
-
 export const showSupervisorStoreStats = async (client: TelegramClient, chatId: number, messageId?: number) => {
-    const text = generateStoreStatsText("ТЦ 'Галерея'", 150000, 500000);
+    // For this demo, we'll show all stores
+    // In a real implementation, we would only show stores assigned to this supervisor
+    const allStores = MOCK_STORES;
+    
+    const builder = new MessageBuilder()
+        .addTitle("📈 Показатели торговых точек")
+        .newLine(2);
+    
+    allStores.forEach(store => {
+        builder
+            .addBold(store.name)
+            .newLine()
+            .addRawText(createPlanCompletionText(store.currentRevenue, store.monthlyPlan))
+            .newLine(2);
+    });
+
     const keyboard: InlineKeyboardMarkup = {
         inline_keyboard: [
             [{ text: "⬅️ Назад", callback_data: "back_to_supervisor_menu" }],
         ],
     };
-    return sendOrEdit(client, chatId, text, keyboard, messageId);
+    return sendOrEdit(client, chatId, builder.build(), keyboard, messageId);
 };
 
 export const showSupervisorSellerStats = async (client: TelegramClient, chatId: number, messageId?: number) => {
-    const text = generateSellerStatsText("Иванов И.И.", 120000, 300000);
+    // For this demo, we'll show all sellers
+    // In a real implementation, we would only show sellers under this supervisor's purview
+    const allSellers = MOCK_SELLERS;
+    
+    const builder = new MessageBuilder()
+        .addTitle("👥 Показатели продавцов")
+        .newLine(2);
+    
+    allSellers.forEach(seller => {
+        builder
+            .addBold(seller.name)
+            .newLine()
+            .addRawText(createPlanCompletionText(seller.currentRevenue, seller.monthlyPlan))
+            .newLine(2);
+    });
+
     const keyboard: InlineKeyboardMarkup = {
         inline_keyboard: [
             [{ text: "⬅️ Назад", callback_data: "back_to_supervisor_menu" }],
         ],
     };
-    return sendOrEdit(client, chatId, text, keyboard, messageId);
+    return sendOrEdit(client, chatId, builder.build(), keyboard, messageId);
 };
 
 export const showManagerStoreStats = async (client: TelegramClient, chatId: number, messageId?: number) => {
-    const text = generateStoreStatsText("Все точки", 800000, 2000000);
+    const allStores = MOCK_STORES;
+    
+    // Calculate totals
+    const totalPlan = allStores.reduce((sum, store) => sum + store.monthlyPlan, 0);
+    const totalRevenue = allStores.reduce((sum, store) => sum + store.currentRevenue, 0);
+    
+    const builder = new MessageBuilder()
+        .addTitle("📈 Показатели всех торговых точек")
+        .newLine(2)
+        .addBold("Общий итог:")
+        .newLine()
+        .addRawText(createPlanCompletionText(totalRevenue, totalPlan))
+        .newLine(2)
+        .addBold("Детализация по точкам:").newLine();
+    
+    allStores.forEach(store => {
+        builder
+            .addBold(`• ${store.name}`)
+            .newLine()
+            .addRawText(createPlanCompletionText(store.currentRevenue, store.monthlyPlan))
+            .newLine();
+    });
+
     const keyboard: InlineKeyboardMarkup = {
         inline_keyboard: [
             [{ text: "⬅️ Назад", callback_data: "back_to_manager_menu" }],
         ],
     };
-    return sendOrEdit(client, chatId, text, keyboard, messageId);
+    return sendOrEdit(client, chatId, builder.build(), keyboard, messageId);
 };
 
 export const showManagerSellerStats = async (client: TelegramClient, chatId: number, messageId?: number) => {
-    const text = generateSellerStatsText("Все продавцы", 750000, 1800000);
+    const allSellers = MOCK_SELLERS;
+    
+    // Calculate totals
+    const totalPlan = allSellers.reduce((sum, seller) => sum + seller.monthlyPlan, 0);
+    const totalRevenue = allSellers.reduce((sum, seller) => sum + seller.currentRevenue, 0);
+    
+    const builder = new MessageBuilder()
+        .addTitle("👥 Показатели всех продавцов")
+        .newLine(2)
+        .addBold("Общий итог:")
+        .newLine()
+        .addRawText(createPlanCompletionText(totalRevenue, totalPlan))
+        .newLine(2)
+        .addBold("Детализация по продавцам:").newLine();
+    
+    allSellers.forEach(seller => {
+        builder
+            .addBold(`• ${seller.name}`)
+            .newLine()
+            .addRawText(createPlanCompletionText(seller.currentRevenue, seller.monthlyPlan))
+            .newLine();
+    });
+
     const keyboard: InlineKeyboardMarkup = {
         inline_keyboard: [
             [{ text: "⬅️ Назад", callback_data: "back_to_manager_menu" }],
         ],
     };
-    return sendOrEdit(client, chatId, text, keyboard, messageId);
+    return sendOrEdit(client, chatId, builder.build(), keyboard, messageId);
 };
 
 // --- Placeholder Screens ---
+
+// --- Work Materials Section ---
+export const showWorkMaterialsMenu = async (client: TelegramClient, chatId: number, messageId?: number) => {
+    const text = new MessageBuilder()
+        .addTitle("📚 Все для работы")
+        .newLine(2)
+        .addText("Выберите категорию материалов:")
+        .build();
+    
+    const keyboard: InlineKeyboardMarkup = {
+        inline_keyboard: [
+            [{ text: "📋 Регламенты", callback_data: "work_materials_regulations" }],
+            [{ text: "📁 Информационные материалы", callback_data: "work_materials_info" }],
+            [{ text: "💬 Скрипты", callback_data: "work_materials_scripts" }],
+            [{ text: "⬅️ Назад", callback_data: "back_to_seller_menu" }],
+        ],
+    };
+    return sendOrEdit(client, chatId, text, keyboard, messageId);
+};
+
+export const showWorkMaterialsByCategory = async (client: TelegramClient, chatId: number, category: string, messageId?: number) => {
+    // Map category to proper display name
+    const categoryNames: Record<string, string> = {
+        'regulations': '📋 Регламенты',
+        'materials': '📁 Информационные материалы', 
+        'scripts': '💬 Скрипты'
+    };
+    
+    const categoryName = categoryNames[category] || 'Материалы';
+    const materials = getMaterialsByCategory(category);
+    
+    const builder = new MessageBuilder()
+        .addTitle(categoryName)
+        .newLine(2);
+    
+    if (materials.length === 0) {
+        builder.addText("Материалы в этой категории отсутствуют");
+    } else {
+        materials.forEach((material: WorkMaterial) => {
+            builder
+                .addListItem(`${material.title}`)
+                .addText(` (${material.fileSize})`)
+                .newLine();
+        });
+    }
+    
+    const text = builder.build();
+    
+    const keyboard: InlineKeyboardMarkup = {
+        inline_keyboard: [
+            [{ text: "⬅️ Назад", callback_data: "work_materials_menu" }],
+        ],
+    };
+    return sendOrEdit(client, chatId, text, keyboard, messageId);
+};
 
 export const showInDevelopment = async (client: TelegramClient, queryId: string) => {
     await client.answerCallbackQuery({
