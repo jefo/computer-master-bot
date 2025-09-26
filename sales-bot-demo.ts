@@ -58,43 +58,50 @@ const mainLoop = async () => {
                         else if (state.step === "AWAITING_CARD") { reportData.card = text; nextStep = "AWAITING_QR"; await Views.askForQrAmount(client, chatId, undefined); }
                         else if (state.step === "AWAITING_QR") { reportData.qr = text; nextStep = "AWAITING_TRANSFER"; await Views.askForTransferAmount(client, chatId, undefined); }
                         else if (state.step === "AWAITING_TRANSFER") { reportData.returns = text; nextStep = "AWAITING_RETURNS"; await Views.askForReturnsAmount(client, chatId, undefined); }
-                        else if (state.step === "AWAITING_RETURNS") {
+                        else if (state.step === "AWAITING_RETURNS") { 
                             reportData.returns = text; 
-                            const photoPromptMessage = await Views.askForPhotos(client, chatId, undefined, 0);
+                            // Send a NEW message asking for photos, don't save messageId as we won't edit it.
+                            await Views.askForPhotos(client, chatId, undefined, 0);
                             conversationStates.set(chatId, {
                                 ...state,
                                 step: "AWAITING_PHOTOS",
                                 reportData,
-                                messageId: photoPromptMessage.message_id,
                                 photosUploaded: 0,
                             });
-                            continue;
+                             continue;
                         }
                         else if (state.step === "AWAITING_EMERGENCY_REVENUE") {
-                             const sentMessage = await Views.showEmergencyClosePrompt(client, chatId, state.messageId!)
-                             await Views.showShiftEndMessage(client, chatId, sentMessage.message_id);
+                             await Views.showShiftEndMessage(client, chatId, state.messageId!)
                              console.log(`[${chatId}] Emergency closure with revenue: ${text}`);
                              conversationStates.delete(chatId);
                              continue;
                         }
                         conversationStates.set(chatId, { ...state, step: nextStep, reportData });
-                        continue;
+                        continue; // Continue to next update
                     }
                 }
 
                 // --- Photo Handler ---
-                if (update.message?.photo) {
+                else if (update.message?.photo) {
                     if (state.step === "AWAITING_PHOTOS") {
-                        const messageId = state.messageId!;
-                        const uploadedCount = (state.photosUploaded || 0) + 1;
-                        console.log(`[${chatId}] Received photo ${uploadedCount}/4`);
-                        conversationStates.set(chatId, { ...state, photosUploaded: uploadedCount });
-                        await Views.askForPhotos(client, chatId, messageId, uploadedCount);
+                        const currentUploadedCount = (state.photosUploaded || 0);
+                        const newUploadedCount = currentUploadedCount + 1;
+                        console.log(`[${chatId}] Received photo ${newUploadedCount}/4`);
+                        
+                        if (newUploadedCount < 4) {
+                            conversationStates.set(chatId, { ...state, photosUploaded: newUploadedCount });
+                            // Send a NEW message for the next photo prompt
+                            await Views.askForPhotos(client, chatId, undefined, newUploadedCount);
+                        } else { // All 4 photos uploaded
+                            conversationStates.set(chatId, { ...state, step: "REPORT_REVIEW", photosUploaded: newUploadedCount });
+                            // Send a NEW message for the report review
+                            await Views.showReportReview(client, chatId, undefined, state.reportData);
+                        }
                     }
                 }
 
                 // --- Callback Query Handler ---
-                if (update.callback_query) {
+                else if (update.callback_query) {
                     const data = update.callback_query.data;
                     const messageId = update.callback_query.message!.message_id;
                     console.log(`[${chatId}] Callback: ${data}`);
