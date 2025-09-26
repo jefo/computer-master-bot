@@ -498,16 +498,10 @@ export const showReportForm = async (client: TelegramClient, chatId: number, mes
         totalRevenueText = `${totalRevenue.toLocaleString('ru-RU')} руб.`;
     }
 
-    const builder = new MessageBuilder()
-        .addTitle("📋 Форма отчета за смену")
-        .newLine(2)
-        .addBold("Пожалуйста, заполните все поля:")
-        .newLine(2);
-    
     // Add special instruction if a field is being edited
+    let fieldLabel = "";
+    let fieldIcon = "";
     if (editingField) {
-        let fieldLabel = "";
-        let fieldIcon = "";
         if (editingField === "cash") {
             fieldLabel = "наличные";
             fieldIcon = "💵";
@@ -528,37 +522,59 @@ export const showReportForm = async (client: TelegramClient, chatId: number, mes
             fieldLabel = "возвраты";
             fieldIcon = "↩️";
         }
-        
-        builder
-            .addText(`${fieldIcon} Введите сумму для поля "${fieldLabel}":`)
-            .newLine(2);
     }
     
+    const builder = new MessageBuilder()
+        .addTitle("📋 Форма отчета за смену")
+        .newLine(2)
+        .addBold("Пожалуйста, заполните все поля:");
+    
+    if (editingField) {
+        builder.addText(` ${fieldIcon} Введите сумму для поля "${fieldLabel}":`);
+    }
+    builder.newLine(2);
+    
+    // Add indicators for fields with arrows if they are being edited
+    const cardIndicator = (editingField === 'card') ? ' 👉' : '';
+    const cashIndicator = (editingField === 'cash') ? ' 👉' : '';
+    const qrIndicator = (editingField === 'qr') ? ' 👉' : '';
+    const transferIndicator = (editingField === 'transfer') ? ' 👉' : '';
+    const returnsIndicator = (editingField === 'returns') ? ' 👉' : '';
+    
     builder
-        .addText(`${cardStatus} 💳 Безналичный расчет: ${cardValue}`)
+        .addText(`${cardStatus} 💳 Безналичный расчет: ${cardValue}${cardIndicator}`)
         .newLine()
-        .addText(`${cashStatus} 💵 Наличные: ${cashValue}`)
+        .addText(`${cashStatus} 💵 Наличные: ${cashValue}${cashIndicator}`)
         .newLine()
-        .addText(`${qrStatus} 📱 Оплата по QR-коду: ${qrValue}`)
+        .addText(`${qrStatus} 📱 Оплата по QR-коду: ${qrValue}${qrIndicator}`)
         .newLine()
-        .addText(`${transferStatus} 🔄 Переводом: ${transferValue}`)
+        .addText(`${transferStatus} 🔄 Переводом: ${transferValue}${transferIndicator}`)
         .newLine()
-        .addText(`${returnsStatus} ↩️ Возвраты: ${returnsValue}`)
+        .addText(`${returnsStatus} ↩️ Возвраты: ${returnsValue}${returnsIndicator}`)
         .newLine(2)
         .addBold(`💰 Общая выручка: ${totalRevenueText}`)
         .newLine(2)
-        .addText("Для заполнения поля нажмите на соответствующую кнопку.");
+        .addText("Для заполнения поля нажмите на соответствующую кнопку.")
+        .newLine()
+        .addText("Для редактирования любого значения нажмите на кнопку с нужным полем.");
+
+    // Create keyboard with edit buttons for each field, with indicator for currently editing field
+    const cardButtonText = (editingField === 'card') ? `💳 Безнал ${cardStatus} 👈` : `💳 Безнал ${cardStatus}`;
+    const cashButtonText = (editingField === 'cash') ? `💵 Наличные ${cashStatus} 👈` : `💵 Наличные ${cashStatus}`;
+    const qrButtonText = (editingField === 'qr') ? `📱 QR-код ${qrStatus} 👈` : `📱 QR-код ${qrStatus}`;
+    const transferButtonText = (editingField === 'transfer') ? `🔄 Перевод ${transferStatus} 👈` : `🔄 Перевод ${transferStatus}`;
+    const returnsButtonText = (editingField === 'returns') ? `↩️ Возвраты ${returnsStatus} 👈` : `↩️ Возвраты ${returnsStatus}`;
 
     // Create keyboard with edit buttons for each field
     const keyboard: InlineKeyboardMarkup = [
         [
-            { text: `💳 Безнал ${cardStatus}`, callback_data: "edit_card" },
-            { text: `💵 Наличные ${cashStatus}`, callback_data: "edit_cash" },
-            { text: `📱 QR-код ${qrStatus}`, callback_data: "edit_qr" }
+            { text: cardButtonText, callback_data: "edit_card" },
+            { text: cashButtonText, callback_data: "edit_cash" },
+            { text: qrButtonText, callback_data: "edit_qr" }
         ],
         [
-            { text: `🔄 Перевод ${transferStatus}`, callback_data: "edit_transfer" },
-            { text: `↩️ Возвраты ${returnsStatus}`, callback_data: "edit_returns" }
+            { text: transferButtonText, callback_data: "edit_transfer" },
+            { text: returnsButtonText, callback_data: "edit_returns" }
         ]
     ];
 
