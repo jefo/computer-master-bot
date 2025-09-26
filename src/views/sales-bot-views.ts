@@ -461,57 +461,83 @@ export const showManagerSellerStats = async (client: TelegramClient, chatId: num
 
 // --- Placeholder Screens ---
 
-// --- Report Summary with Edit Options ---
-export const showReportSummary = async (client: TelegramClient, chatId: number, messageId: number | undefined, reportData: any) => {
-    const cash = Number(reportData.cash) || 0;
-    const card = Number(reportData.card) || 0;
-    const qr = Number(reportData.qr) || 0;
-    const transfer = Number(reportData.transfer) || 0;
-    const returns = Number(reportData.returns) || 0;
+// --- Report Form ---
+export const showReportForm = async (client: TelegramClient, chatId: number, messageId: number | undefined, reportData: any) => {
+    // Status indicators
+    const cashStatus = (reportData.cash !== undefined && reportData.cash !== '') ? '✅' : '☑️';
+    const cardStatus = (reportData.card !== undefined && reportData.card !== '') ? '✅' : '☑️';
+    const qrStatus = (reportData.qr !== undefined && reportData.qr !== '') ? '✅' : '☑️';
+    const transferStatus = (reportData.transfer !== undefined && reportData.transfer !== '') ? '✅' : '☑️';
+    const returnsStatus = (reportData.returns !== undefined && reportData.returns !== '') ? '✅' : '☑️';
+
+    // Format values or show placeholder
+    const cashValue = (reportData.cash !== undefined && reportData.cash !== '') ? 
+        `${Number(reportData.cash).toLocaleString('ru-RU')} руб.` : '...';
+    const cardValue = (reportData.card !== undefined && reportData.card !== '') ? 
+        `${Number(reportData.card).toLocaleString('ru-RU')} руб.` : '...';
+    const qrValue = (reportData.qr !== undefined && reportData.qr !== '') ? 
+        `${Number(reportData.qr).toLocaleString('ru-RU')} руб.` : '...';
+    const transferValue = (reportData.transfer !== undefined && reportData.transfer !== '') ? 
+        `${Number(reportData.transfer).toLocaleString('ru-RU')} руб.` : '...';
+    const returnsValue = (reportData.returns !== undefined && reportData.returns !== '') ? 
+        `${Number(reportData.returns).toLocaleString('ru-RU')} руб.` : '...';
+
+    // Calculate total if all values are present
+    const allFieldsFilled = cashValue !== '...' && cardValue !== '...' && 
+                           qrValue !== '...' && transferValue !== '...' && returnsValue !== '...';
     
-    const totalRevenue = cash + card + qr + transfer - returns;
-    
+    let totalRevenueText = '...';
+    if (allFieldsFilled) {
+        const cash = Number(reportData.cash) || 0;
+        const card = Number(reportData.card) || 0;
+        const qr = Number(reportData.qr) || 0;
+        const transfer = Number(reportData.transfer) || 0;
+        const returns = Number(reportData.returns) || 0;
+        
+        const totalRevenue = cash + card + qr + transfer - returns;
+        totalRevenueText = `${totalRevenue.toLocaleString('ru-RU')} руб.`;
+    }
+
     const builder = new MessageBuilder()
-        .addTitle("📋 Сводка отчета")
+        .addTitle("📋 Форма отчета за смену")
         .newLine(2)
-        .addBold("Текущие значения:")
+        .addBold("Пожалуйста, заполните все поля:")
         .newLine(2)
-        .addText(`💳 Безналичный расчет: ${card.toLocaleString('ru-RU')} руб.`)
+        .addText(`${cardStatus} 💳 Безналичный расчет: ${cardValue}`)
         .newLine()
-        .addText(`💵 Наличные: ${cash.toLocaleString('ru-RU')} руб.`)
+        .addText(`${cashStatus} 💵 Наличные: ${cashValue}`)
         .newLine()
-        .addText(`📱 Оплата по QR-коду: ${qr.toLocaleString('ru-RU')} руб.`)
+        .addText(`${qrStatus} 📱 Оплата по QR-коду: ${qrValue}`)
         .newLine()
-        .addText(`🔄 Переводом: ${transfer.toLocaleString('ru-RU')} руб.`)
+        .addText(`${transferStatus} 🔄 Переводом: ${transferValue}`)
         .newLine()
-        .addText(`↩️ Возвраты: ${returns.toLocaleString('ru-RU')} руб.`)
+        .addText(`${returnsStatus} ↩️ Возвраты: ${returnsValue}`)
         .newLine(2)
-        .addBold(`💰 Общая выручка: ${totalRevenue.toLocaleString('ru-RU')} руб.`)
+        .addBold(`💰 Общая выручка: ${totalRevenueText}`)
         .newLine(2)
-        .addText("Для редактирования нажмите кнопку ниже.");
+        .addText("Для заполнения поля нажмите на соответствующую кнопку.");
 
     // Create keyboard with edit buttons for each field
-    const keyboard: InlineKeyboardMarkup = {
-        inline_keyboard: [
-            [
-                { text: "💳 Безнал", callback_data: "edit_card" },
-                { text: "💵 Наличные", callback_data: "edit_cash" },
-                { text: "📱 QR-код", callback_data: "edit_qr" }
-            ],
-            [
-                { text: "🔄 Перевод", callback_data: "edit_transfer" },
-                { text: "↩️ Возвраты", callback_data: "edit_returns" }
-            ],
-            [
-                { text: "✅ Подтвердить", callback_data: "report_summary_confirm" },
-                { text: "🔄 Ввести заново", callback_data: "report_edit" }
-            ],
-            [
-                { text: "⬅️ Назад", callback_data: "back_to_seller_menu" }
-            ]
+    const keyboard: InlineKeyboardMarkup = [
+        [
+            { text: `💳 Безнал ${cardStatus}`, callback_data: "edit_card" },
+            { text: `💵 Наличные ${cashStatus}`, callback_data: "edit_cash" },
+            { text: `📱 QR-код ${qrStatus}`, callback_data: "edit_qr" }
         ],
-    };
-    return sendOrEdit(client, chatId, builder.build(), keyboard, messageId);
+        [
+            { text: `🔄 Перевод ${transferStatus}`, callback_data: "edit_transfer" },
+            { text: `↩️ Возвраты ${returnsStatus}`, callback_data: "edit_returns" }
+        ]
+    ];
+
+    // Add confirm button only if all fields are filled
+    if (allFieldsFilled) {
+        keyboard.push([{ text: "✅ Подтвердить отчет", callback_data: "report_form_confirm" }]);
+    }
+
+    keyboard.push([{ text: "⬅️ Назад", callback_data: "back_to_seller_menu" }]);
+
+    return sendOrEdit(client, chatId, builder.build(), { inline_keyboard: keyboard }, messageId);
 };
 
 // --- Work Materials Section ---

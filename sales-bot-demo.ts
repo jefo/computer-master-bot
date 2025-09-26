@@ -49,86 +49,9 @@ const mainLoop = async () => {
                         continue;
                     }
 
-                    // --- Report Data Input (for AWAITING steps) ---
-                    if (state.step.startsWith("AWAITING_")) {
-                        const reportData = state.reportData || {};
-                        
-                        // Validate that the input is a number (for normal flow)
-                        const numberValue = parseFloat(text.replace(/[^\d.,-]/g, ''));
-                        if (isNaN(numberValue) || numberValue < 0) {
-                            await client.sendMessage({
-                                chat_id: chatId,
-                                text: "❌ Пожалуйста, введите корректное числовое значение (только цифры и десятичный разделитель)."
-                            });
-                            // Re-ask for the same input without advancing the state
-                            if (state.step === "AWAITING_REVENUE") await Views.askForRevenue(client, chatId, undefined);
-                            else if (state.step === "AWAITING_CASH") await Views.askForCashAmount(client, chatId, undefined);
-                            else if (state.step === "AWAITING_CARD") await Views.askForCardAmount(client, chatId, undefined);
-                            else if (state.step === "AWAITING_QR") await Views.askForQrAmount(client, chatId, undefined);
-                            else if (state.step === "AWAITING_TRANSFER") await Views.askForTransferAmount(client, chatId, undefined);
-                            else if (state.step === "AWAITING_RETURNS") await Views.askForReturnsAmount(client, chatId, undefined);
-                            else if (state.step === "AWAITING_EMERGENCY_REVENUE") await Views.askForEmergencyClosePrompt(client, chatId, undefined);
-                            continue; // Skip further processing and wait for new input
-                        }
-
-                        let nextStep = "";
-
-                        if (state.step === "AWAITING_REVENUE") { 
-                            reportData.revenue = numberValue; 
-                            nextStep = "AWAITING_CASH"; 
-                            await Views.askForCashAmount(client, chatId, undefined); 
-                        }
-                        else if (state.step === "AWAITING_CASH") { 
-                            reportData.cash = numberValue; 
-                            nextStep = "AWAITING_CARD"; 
-                            await Views.askForCardAmount(client, chatId, undefined); 
-                        }
-                        else if (state.step === "AWAITING_CARD") { 
-                            reportData.card = numberValue; 
-                            nextStep = "AWAITING_QR"; 
-                            await Views.askForQrAmount(client, chatId, undefined); 
-                        }
-                        else if (state.step === "AWAITING_QR") { 
-                            reportData.qr = numberValue; 
-                            nextStep = "AWAITING_TRANSFER"; 
-                            await Views.askForTransferAmount(client, chatId, undefined); 
-                        }
-                        else if (state.step === "AWAITING_TRANSFER") { 
-                            reportData.transfer = numberValue; 
-                            nextStep = "AWAITING_RETURNS"; 
-                            await Views.askForReturnsAmount(client, chatId, undefined); 
-                        }
-                        else if (state.step === "AWAITING_RETURNS") { 
-                            reportData.returns = numberValue; 
-                            // Show report summary with edit options before proceeding to photos
-                            await Views.showReportSummary(client, chatId, undefined, reportData);
-                            conversationStates.set(chatId, {
-                                ...state,
-                                step: "REPORT_SUMMARY", // New step for summary review
-                                reportData,
-                            });
-                             continue;
-                        }
-                        else if (state.step === "AWAITING_EMERGENCY_REVENUE") {
-                             // Validate emergency revenue value and ensure it's a positive number
-                             if (numberValue >= 0) {
-                                 await Views.showShiftEndMessage(client, chatId, state.messageId!)
-                                 console.log(`[${chatId}] Emergency closure with revenue: ${numberValue}`);
-                                 conversationStates.delete(chatId);
-                             } else {
-                                 await client.sendMessage({
-                                     chat_id: chatId,
-                                     text: "❌ Пожалуйста, введите корректное неотрицательное значение для выручки при экстренном закрытии."
-                                 });
-                                 await Views.showEmergencyClosePrompt(client, chatId, undefined);
-                             }
-                             continue;
-                        }
-                        conversationStates.set(chatId, { ...state, step: nextStep, reportData });
-                        continue; // Continue to next update
-                    }
                     
-                    // --- Handle editing mode (works in any step when editingField is set) ---
+                    
+                    // --- Handle editing mode (works in REPORT_FORM step when editingField is set) ---
                     if (state.editingField) {
                         const reportData = state.reportData || {};
                         
@@ -139,20 +62,26 @@ const mainLoop = async () => {
                                 chat_id: chatId,
                                 text: "❌ Пожалуйста, введите корректное числовое значение (только цифры и десятичный разделитель)."
                             });
-                            // Re-ask for the same input without advancing the state
-                            if (state.editingField === "revenue") await Views.askForRevenue(client, chatId, undefined);
-                            else if (state.editingField === "cash") await Views.askForCashAmount(client, chatId, undefined);
-                            else if (state.editingField === "card") await Views.askForCardAmount(client, chatId, undefined);
-                            else if (state.editingField === "qr") await Views.askForQrAmount(client, chatId, undefined);
-                            else if (state.editingField === "transfer") await Views.askForTransferAmount(client, chatId, undefined);
-                            else if (state.editingField === "returns") await Views.askForReturnsAmount(client, chatId, undefined);
+                            // Send informational message again about which field to enter
+                            let fieldPrompt = "";
+                            if (state.editingField === "revenue") fieldPrompt = "общую сумму выручки";
+                            else if (state.editingField === "cash") fieldPrompt = "наличные";
+                            else if (state.editingField === "card") fieldPrompt = "безналичный расчет";
+                            else if (state.editingField === "qr") fieldPrompt = "оплату по QR-коду";
+                            else if (state.editingField === "transfer") fieldPrompt = "переводом";
+                            else if (state.editingField === "returns") fieldPrompt = "возвраты";
+                            
+                            await client.sendMessage({
+                                chat_id: chatId,
+                                text: `Введите сумму для поля "${fieldPrompt}":`
+                            });
                             continue; // Skip further processing and wait for new input
                         }
                         
                         // Update the specific field
                         reportData[state.editingField] = numberValue;
                         
-                        // Clear the editing field state but keep in current step (should be REPORT_SUMMARY)
+                        // Clear the editing field state but keep in REPORT_FORM step
                         conversationStates.set(chatId, { 
                             ...state, 
                             reportData,
@@ -161,13 +90,43 @@ const mainLoop = async () => {
                         
                         console.log(`[${chatId}] Updated report data:`, reportData);
                         
-                        // Show the updated report summary with edit options (if still in summary step)
-                        if (state.step === "REPORT_SUMMARY") {
-                            await Views.showReportSummary(client, chatId, undefined, reportData);
+                        // Show the updated report form (if still in form step)
+                        if (state.step === "REPORT_FORM") {
+                            await Views.showReportForm(client, chatId, state.messageId, reportData);
                         }
                         continue;
                     }
-                    // Handle REPORT_SUMMARY step
+                    // Handle REPORT_FORM step
+                    else if (state.step === "REPORT_FORM") {
+                        // If we're in REPORT_FORM but not in editing mode, text messages should be ignored
+                        if (!state.editingField) {
+                            console.log(`[${chatId}] Text message ignored in REPORT_FORM state (not editing)`);
+                        }
+                        continue; // Skip text processing in this state, wait for callback or editing mode
+                    }
+                    // Handle EMERGENCY_CLOSE step
+                    else if (state.step === "EMERGENCY_CLOSE") {
+                        // Validate that the input is a number
+                        const numberValue = parseFloat(text.replace(/[^\d.,-]/g, ''));
+                        if (isNaN(numberValue) || numberValue < 0) {
+                            await client.sendMessage({
+                                chat_id: chatId,
+                                text: "❌ Пожалуйста, введите корректное неотрицательное числовое значение для выручки при экстренном закрытии."
+                            });
+                            await client.sendMessage({
+                                chat_id: chatId,
+                                text: "Введите актуальную сумму выручки на момент экстренного закрытия:"
+                            });
+                            continue; // Skip further processing and wait for new input
+                        }
+                        
+                        // Process emergency close with the provided revenue
+                        await Views.showShiftEndMessage(client, chatId, state.messageId!);
+                        console.log(`[${chatId}] Emergency closure with revenue: ${numberValue}`);
+                        conversationStates.delete(chatId);
+                        continue;
+                    }
+                    // Handle REPORT_SUMMARY step (for backward compatibility)
                     else if (state.step === "REPORT_SUMMARY") {
                         // If we're in REPORT_SUMMARY but not in editing mode, text messages should be ignored
                         if (!state.editingField) {
@@ -216,8 +175,20 @@ const mainLoop = async () => {
                         await Views.showActiveShiftMenu(client, chatId, storeName, messageId);
                     }
                     else if (data === "seller_end_shift") {
-                        conversationStates.set(chatId, { ...state, step: "AWAITING_REVENUE", photosUploaded: 0 });
-                        await Views.askForRevenue(client, chatId, undefined); // Send new message
+                        // Initialize the report form with an empty report
+                        conversationStates.set(chatId, { 
+                            ...state, 
+                            step: "REPORT_FORM", 
+                            reportData: {
+                                revenue: undefined, // For future use if needed
+                                cash: undefined,
+                                card: undefined,
+                                qr: undefined,
+                                transfer: undefined,
+                                returns: undefined
+                            }
+                        });
+                        await Views.showReportForm(client, chatId, messageId, {}); // Show empty form
                     }
                     else if (data === "report_confirm") {
                         console.log(`[${chatId}] Report confirmed:`, state.reportData);
@@ -229,8 +200,8 @@ const mainLoop = async () => {
                         conversationStates.set(chatId, { ...state, step: "AWAITING_REVENUE", photosUploaded: 0, reportData: {} });
                         await Views.askForRevenue(client, chatId, undefined); // Send new message
                     }
-                    else if (data === "report_summary_confirm") {
-                        // After confirming the summary, proceed to photo uploads
+                    else if (data === "report_form_confirm") {
+                        // After confirming the form, proceed to photo uploads
                         await Views.askForPhotos(client, chatId, undefined, 0);
                         conversationStates.set(chatId, {
                             ...state,
@@ -238,12 +209,12 @@ const mainLoop = async () => {
                             photosUploaded: 0,
                         });
                     }
-                    // Handle inline editing requests
+                    // Handle inline editing requests for REPORT_FORM
                     else if (data.startsWith("edit_")) {
                         // Extract field to edit (e.g., "edit_revenue", "edit_cash", etc.)
                         const fieldToEdit = data.substring(5); // Remove "edit_" prefix
                         
-                        // Set the editing field in state while preserving the current step
+                        // Set the editing field in state
                         conversationStates.set(chatId, { 
                             ...state, 
                             editingField: fieldToEdit 
@@ -251,17 +222,27 @@ const mainLoop = async () => {
                         
                         console.log(`[${chatId}] Setting editing field: ${fieldToEdit}, state:`, conversationStates.get(chatId));
                         
-                        // Ask for the specific value to edit
-                        if (fieldToEdit === "revenue") await Views.askForRevenue(client, chatId, messageId);
-                        else if (fieldToEdit === "cash") await Views.askForCashAmount(client, chatId, messageId);
-                        else if (fieldToEdit === "card") await Views.askForCardAmount(client, chatId, messageId);
-                        else if (fieldToEdit === "qr") await Views.askForQrAmount(client, chatId, messageId);
-                        else if (fieldToEdit === "transfer") await Views.askForTransferAmount(client, chatId, messageId);
-                        else if (fieldToEdit === "returns") await Views.askForReturnsAmount(client, chatId, messageId);
+                        // Send an informational message about which field to enter
+                        let fieldPrompt = "";
+                        if (fieldToEdit === "revenue") fieldPrompt = "общую сумму выручки";
+                        else if (fieldToEdit === "cash") fieldPrompt = "наличные";
+                        else if (fieldToEdit === "card") fieldPrompt = "безналичный расчет";
+                        else if (fieldToEdit === "qr") fieldPrompt = "оплату по QR-коду";
+                        else if (fieldToEdit === "transfer") fieldPrompt = "переводом";
+                        else if (fieldToEdit === "returns") fieldPrompt = "возвраты";
+                        
+                        await client.sendMessage({
+                            chat_id: chatId,
+                            text: `Введите сумму для поля "${fieldPrompt}":`
+                        });
                     }
                     else if (data === "seller_emergency_close") {
-                        conversationStates.set(chatId, { ...state, step: "AWAITING_EMERGENCY_REVENUE" });
-                        await Views.showEmergencyClosePrompt(client, chatId, undefined); // Send new message
+                        // For emergency close, we'll use a simplified flow
+                        conversationStates.set(chatId, { ...state, step: "EMERGENCY_CLOSE" });
+                        await client.sendMessage({
+                            chat_id: chatId,
+                            text: "Введите актуальную сумму выручки на момент экстренного закрытия:"
+                        });
                     }
                     else if (data === "sup_store_stats") await Views.showSupervisorStoreStats(client, chatId, messageId);
                     else if (data === "sup_seller_stats") await Views.showSupervisorSellerStats(client, chatId, messageId);
