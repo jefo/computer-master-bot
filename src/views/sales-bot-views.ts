@@ -6,8 +6,11 @@ import {
   getShiftsForSeller, 
   getMonthlyStatsForSeller, 
   getStoreById,
-  getMaterialsByCategory,
-  MOCK_WORK_MATERIALS,
+  getMaterialsByCategoryAndRole,
+  getAllMaterialsForRole,
+  MOCK_SELLER_WORK_MATERIALS,
+  MOCK_SUPERVISOR_WORK_MATERIALS,
+  MOCK_MANAGER_WORK_MATERIALS,
   MOCK_SELLERS,
   MOCK_STORES,
   Seller,
@@ -596,7 +599,7 @@ export const showReportForm = async (client: TelegramClient, chatId: number, mes
 };
 
 // --- Work Materials Section ---
-export const showWorkMaterialsMenu = async (client: TelegramClient, chatId: number, messageId?: number) => {
+export const showWorkMaterialsMenu = async (client: TelegramClient, chatId: number, messageId?: number, role: 'seller' | 'supervisor' | 'manager' = 'seller') => {
     const text = new MessageBuilder()
         .addTitle("📚 Все для работы")
         .newLine(2)
@@ -605,16 +608,16 @@ export const showWorkMaterialsMenu = async (client: TelegramClient, chatId: numb
     
     const keyboard: InlineKeyboardMarkup = {
         inline_keyboard: [
-            [{ text: "📋 Регламенты", callback_data: "work_materials_regulations" }],
-            [{ text: "📁 Информационные материалы", callback_data: "work_materials_info" }],
-            [{ text: "💬 Скрипты", callback_data: "work_materials_scripts" }],
-            [{ text: "⬅️ Назад", callback_data: "back_to_seller_menu" }],
+            [{ text: "📋 Регламенты", callback_data: `work_materials_regulations_${role}` }],
+            [{ text: "📁 Информационные материалы", callback_data: `work_materials_info_${role}` }],
+            [{ text: "💬 Скрипты", callback_data: `work_materials_scripts_${role}` }],
+            [{ text: "⬅️ Назад", callback_data: `back_to_${role}_menu` }],
         ],
     };
     return sendOrEdit(client, chatId, text, keyboard, messageId);
 };
 
-export const showWorkMaterialsByCategory = async (client: TelegramClient, chatId: number, category: string, messageId?: number) => {
+export const showWorkMaterialsByCategory = async (client: TelegramClient, chatId: number, category: string, role: 'seller' | 'supervisor' | 'manager', messageId?: number) => {
     // Map category to proper display name
     const categoryNames: Record<string, string> = {
         'regulations': '📋 Регламенты',
@@ -623,7 +626,7 @@ export const showWorkMaterialsByCategory = async (client: TelegramClient, chatId
     };
     
     const categoryName = categoryNames[category] || 'Материалы';
-    const materials = getMaterialsByCategory(category);
+    const materials = getMaterialsByCategoryAndRole(category, role);
     
     const builder = new MessageBuilder()
         .addTitle(categoryName)
@@ -644,7 +647,7 @@ export const showWorkMaterialsByCategory = async (client: TelegramClient, chatId
     
     const keyboard: InlineKeyboardMarkup = {
         inline_keyboard: [
-            [{ text: "⬅️ Назад", callback_data: "work_materials_menu" }],
+            [{ text: "⬅️ Назад", callback_data: `work_materials_menu_${role}` }],
         ],
     };
     return sendOrEdit(client, chatId, text, keyboard, messageId);

@@ -459,6 +459,33 @@ const mainLoop = async () => {
                     else if (data === "role_manager") {
                         await Views.showManagerMenu(client, chatId, messageId);
                     }
+                    else if (data === "seller_work_materials") {
+                        await Views.showWorkMaterialsMenu(client, chatId, messageId, 'seller');
+                    }
+                    else if (data === "sup_work_materials") {
+                        await Views.showWorkMaterialsMenu(client, chatId, messageId, 'supervisor');
+                    }
+                    else if (data === "man_work_materials") {
+                        await Views.showWorkMaterialsMenu(client, chatId, messageId, 'manager');
+                    }
+                    // Handle category-specific callbacks for each role
+                    else if (data.startsWith("work_materials_regulations_")) {
+                        const role = data.split("_")[3] as 'seller' | 'supervisor' | 'manager';
+                        await Views.showWorkMaterialsByCategory(client, chatId, "regulations", role, messageId);
+                    }
+                    else if (data.startsWith("work_materials_info_")) {
+                        const role = data.split("_")[3] as 'seller' | 'supervisor' | 'manager';
+                        await Views.showWorkMaterialsByCategory(client, chatId, "materials", role, messageId);
+                    }
+                    else if (data.startsWith("work_materials_scripts_")) {
+                        const role = data.split("_")[3] as 'seller' | 'supervisor' | 'manager';
+                        await Views.showWorkMaterialsByCategory(client, chatId, "scripts", role, messageId);
+                    }
+                    // Handle returning to work materials menu
+                    else if (data.startsWith("work_materials_menu_")) {
+                        const role = data.split("_")[3] as 'seller' | 'supervisor' | 'manager';
+                        await Views.showWorkMaterialsMenu(client, chatId, messageId, role);
+                    }
                     else if (data.includes("_materials")) {
                         await Views.showInDevelopment(client, update.callback_query.id);
                     }

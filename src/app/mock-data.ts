@@ -263,46 +263,118 @@ export const MOCK_MONTHLY_STATS: Record<string, MonthlyStats[]> = {
   ]
 };
 
-// Mock work materials
-export const MOCK_WORK_MATERIALS: WorkMaterial[] = [
+// Mock work materials for sellers
+export const MOCK_SELLER_WORK_MATERIALS: WorkMaterial[] = [
   {
-    id: "mat_1",
+    id: "smat_1",
     title: "Регламент работы с покупателями",
     category: "regulations",
-    fileName: "reglament_raboty.pdf",
+    fileName: "seller_reglament_raboty.pdf",
     fileSize: "1.2 MB",
     downloadUrl: "#"
   },
   {
-    id: "mat_2",
+    id: "smat_2",
     title: "Скрипт обслуживания покупателей",
     category: "scripts",
-    fileName: "skript_observaniya.docx",
+    fileName: "seller_skript_observaniya.docx",
     fileSize: "0.8 MB",
     downloadUrl: "#"
   },
   {
-    id: "mat_3",
+    id: "smat_3",
     title: "Информационные материалы о продукции",
     category: "materials",
-    fileName: "info_materials.pdf",
+    fileName: "seller_info_materials.pdf",
     fileSize: "2.5 MB",
     downloadUrl: "#"
   },
   {
-    id: "mat_4",
+    id: "smat_4",
     title: "Правила внутреннего распорядка",
     category: "regulations",
-    fileName: "pravila_rasporjadka.pdf",
+    fileName: "seller_pravila_rasporjadka.pdf",
     fileSize: "0.5 MB",
     downloadUrl: "#"
   },
   {
-    id: "mat_5",
+    id: "smat_5",
     title: "Скрипт продажи премиум-товаров",
     category: "scripts",
-    fileName: "premium_sales_script.docx",
+    fileName: "seller_premium_sales_script.docx",
     fileSize: "1.0 MB",
+    downloadUrl: "#"
+  }
+];
+
+// Mock work materials for supervisors
+export const MOCK_SUPERVISOR_WORK_MATERIALS: WorkMaterial[] = [
+  {
+    id: "sumat_1",
+    title: "Регламенты для супервайзеров",
+    category: "regulations",
+    fileName: "sup_reglamenty.pdf",
+    fileSize: "1.6 MB",
+    downloadUrl: "#"
+  },
+  {
+    id: "sumat_2",
+    title: "Скрипты для супервайзеров",
+    category: "scripts",
+    fileName: "sup_skripty.docx",
+    fileSize: "1.1 MB",
+    downloadUrl: "#"
+  },
+  {
+    id: "sumat_3",
+    title: "Информационные материалы для супервайзеров",
+    category: "materials",
+    fileName: "sup_info_materials.pdf",
+    fileSize: "2.1 MB",
+    downloadUrl: "#"
+  },
+  {
+    id: "sumat_4",
+    title: "Отчетность и контроль",
+    category: "regulations",
+    fileName: "sup_otchetnost.pdf",
+    fileSize: "1.3 MB",
+    downloadUrl: "#"
+  }
+];
+
+// Mock work materials for managers
+export const MOCK_MANAGER_WORK_MATERIALS: WorkMaterial[] = [
+  {
+    id: "mmat_1",
+    title: "Корпоративные стратегии",
+    category: "regulations",
+    fileName: "man_strategii.pdf",
+    fileSize: "2.2 MB",
+    downloadUrl: "#"
+  },
+  {
+    id: "mmat_2",
+    title: "Руководство по принятию решений",
+    category: "scripts",
+    fileName: "man_resheniya.docx",
+    fileSize: "1.4 MB",
+    downloadUrl: "#"
+  },
+  {
+    id: "mmat_3",
+    title: "Аналитические материалы",
+    category: "materials",
+    fileName: "man_analitika.pdf",
+    fileSize: "3.0 MB",
+    downloadUrl: "#"
+  },
+  {
+    id: "mmat_4",
+    title: "Отчеты по эффективности",
+    category: "materials",
+    fileName: "man_effectivnost.pdf",
+    fileSize: "2.7 MB",
     downloadUrl: "#"
   }
 ];
@@ -368,7 +440,32 @@ export const getMonthlyStatsForSeller = (sellerId: string): MonthlyStats[] => {
   return MOCK_MONTHLY_STATS[sellerId] || [];
 };
 
-// Function to get materials by category
-export const getMaterialsByCategory = (category: string): WorkMaterial[] => {
-  return MOCK_WORK_MATERIALS.filter(material => material.category === category);
+// Function to get materials by category and role
+export const getMaterialsByCategoryAndRole = (category: string, role: 'seller' | 'supervisor' | 'manager'): WorkMaterial[] => {
+  let materials: WorkMaterial[] = [];
+  switch(role) {
+    case 'seller':
+      materials = MOCK_SELLER_WORK_MATERIALS;
+      break;
+    case 'supervisor':
+      materials = MOCK_SUPERVISOR_WORK_MATERIALS;
+      break;
+    case 'manager':
+      materials = MOCK_MANAGER_WORK_MATERIALS;
+      break;
+  }
+  
+  return materials.filter(material => material.category === category);
+};
+
+// Function to get all materials for a role
+export const getAllMaterialsForRole = (role: 'seller' | 'supervisor' | 'manager'): WorkMaterial[] => {
+  switch(role) {
+    case 'seller':
+      return MOCK_SELLER_WORK_MATERIALS;
+    case 'supervisor':
+      return MOCK_SUPERVISOR_WORK_MATERIALS;
+    case 'manager':
+      return MOCK_MANAGER_WORK_MATERIALS;
+  }
 };
