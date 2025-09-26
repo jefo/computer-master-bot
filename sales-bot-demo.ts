@@ -43,10 +43,7 @@ const mainLoop = async () => {
 
                     if (text.startsWith("/start")) {
                         conversationStates.delete(chatId);
-                        if (text === "/start_seller") await Views.showSellerMenu(client, chatId);
-                        else if (text === "/start_supervisor") await Views.showSupervisorMenu(client, chatId);
-                        else if (text === "/start_manager") await Views.showManagerMenu(client, chatId);
-                        else await client.sendMessage({ chat_id: chatId, text: "Please use a specific start command: /start_seller, /start_supervisor, or /start_manager" });
+                        await Views.showRoleSelectionMenu(client, chatId);
                         continue;
                     }
 
@@ -63,8 +60,27 @@ const mainLoop = async () => {
                                 chat_id: chatId,
                                 text: "❌ Пожалуйста, введите корректное числовое значение (только цифры и десятичный разделитель)."
                             });
-                            // Show the form with editing instructions again
-                            await Views.showReportForm(client, chatId, state.messageId, reportData, state.editingField);
+                            
+                            // Delete the old form message
+                            if (state.messageId) {
+                                try {
+                                    await client.deleteMessage({ 
+                                        chat_id: chatId, 
+                                        message_id: state.messageId 
+                                    });
+                                } catch (e) {
+                                    // Message might not exist or already be deleted, ignore error
+                                }
+                            }
+                            
+                            // Show the form with editing instructions again at the top
+                            const updatedFormMessage = await Views.showReportForm(client, chatId, undefined, reportData, state.editingField);
+                            
+                            // Update state with the new form message ID
+                            conversationStates.set(chatId, { 
+                                ...state, 
+                                messageId: updatedFormMessage.message_id
+                            });
                             
                             // Resend input instruction
                             let fieldPrompt = "";
@@ -127,9 +143,28 @@ const mainLoop = async () => {
                         
                         console.log(`[${chatId}] Updated report data:`, reportData);
                         
-                        // Show the updated report form (if still in form step)
-                        if (state.step === "REPORT_FORM") {
-                            await Views.showReportForm(client, chatId, state.messageId, reportData, undefined);
+                        // Delete the old form message
+                        if (state.messageId) {
+                            try {
+                                await client.deleteMessage({ 
+                                    chat_id: chatId, 
+                                    message_id: state.messageId 
+                                });
+                            } catch (e) {
+                                // Message might not exist or already be deleted, ignore error
+                            }
+                        }
+                        
+                        // Show the updated report form at the top
+                        const updatedFormMessage = await Views.showReportForm(client, chatId, undefined, reportData, undefined);
+                        
+                        // Update state with the new form message ID
+                        const updatedState = conversationStates.get(chatId);
+                        if (updatedState) {
+                            conversationStates.set(chatId, {
+                                ...updatedState,
+                                messageId: updatedFormMessage.message_id
+                            });
                         }
                         
                         // Find next field to edit (the first one that is not filled)
@@ -350,8 +385,27 @@ const mainLoop = async () => {
                         
                         console.log(`[${chatId}] Setting editing field: ${fieldToEdit}, state:`, conversationStates.get(chatId));
                         
-                        // Update the form message (if it exists)
-                        await Views.showReportForm(client, chatId, state.messageId, state.reportData, fieldToEdit);
+                        // Delete the old form message
+                        if (state.messageId) {
+                            try {
+                                await client.deleteMessage({ 
+                                    chat_id: chatId, 
+                                    message_id: state.messageId 
+                                });
+                            } catch (e) {
+                                // Message might not exist or already be deleted, ignore error
+                            }
+                        }
+                        
+                        // Show updated form at the top
+                        const updatedFormMessage = await Views.showReportForm(client, chatId, undefined, state.reportData, fieldToEdit);
+                        
+                        // Update state with new form message ID
+                        conversationStates.set(chatId, { 
+                            ...state, 
+                            messageId: updatedFormMessage.message_id,
+                            editingField: fieldToEdit
+                        });
                         
                         // Send or update the input instruction message
                         let fieldPrompt = "";
@@ -383,7 +437,6 @@ const mainLoop = async () => {
                         // Update state with new input message ID
                         conversationStates.set(chatId, { 
                             ...state, 
-                            editingField: fieldToEdit,
                             inputMessageId: inputMessage.message_id
                         });
                     }
@@ -399,6 +452,15 @@ const mainLoop = async () => {
                     else if (data === "sup_seller_stats") await Views.showSupervisorSellerStats(client, chatId, messageId);
                     else if (data === "man_store_stats") await Views.showManagerStoreStats(client, chatId, messageId);
                     else if (data === "man_seller_stats") await Views.showManagerSellerStats(client, chatId, messageId);
+                    else if (data === "role_seller") {
+                        await Views.showSellerMenu(client, chatId, messageId);
+                    }
+                    else if (data === "role_supervisor") {
+                        await Views.showSupervisorMenu(client, chatId, messageId);
+                    }
+                    else if (data === "role_manager") {
+                        await Views.showManagerMenu(client, chatId, messageId);
+                    }
                     else if (data.includes("_materials")) {
                         await Views.showInDevelopment(client, update.callback_query.id);
                     }

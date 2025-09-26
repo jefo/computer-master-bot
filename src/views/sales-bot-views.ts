@@ -548,7 +548,14 @@ export const showReportForm = async (client: TelegramClient, chatId: number, mes
 
     // Add confirm button only if all fields are filled
     if (allFieldsFilled) {
-        keyboard.push([{ text: "✅ Подтвердить отчет", callback_data: "report_form_confirm" }]);
+        const cashValue = Number(reportData.cash) || 0;
+        const cardValue = Number(reportData.card) || 0;
+        const qrValue = Number(reportData.qr) || 0;
+        const transferValue = Number(reportData.transfer) || 0;
+        const returnsValue = Number(reportData.returns) || 0;
+        
+        const totalRevenue = cashValue + cardValue + qrValue + transferValue - returnsValue;
+        keyboard.push([{ text: `✅ Подтвердить отчет: ${totalRevenue.toLocaleString('ru-RU')} руб.`, callback_data: "report_form_confirm" }]);
     }
 
     keyboard.push([{ text: "⬅️ Назад", callback_data: "back_to_seller_menu" }]);
@@ -606,6 +613,30 @@ export const showWorkMaterialsByCategory = async (client: TelegramClient, chatId
     const keyboard: InlineKeyboardMarkup = {
         inline_keyboard: [
             [{ text: "⬅️ Назад", callback_data: "work_materials_menu" }],
+        ],
+    };
+    return sendOrEdit(client, chatId, text, keyboard, messageId);
+};
+
+// --- Role Selection Menu ---
+export const showRoleSelectionMenu = async (client: TelegramClient, chatId: number, messageId?: number) => {
+    const text = new MessageBuilder()
+        .addTitle("🤖 Демонстрация Sales Bot")
+        .newLine(2)
+        .addText("Это proof-of-concept бот, демонстрирующий возможности системы управления торговыми точками.")
+        .newLine(2)
+        .addText("Выберите роль для входа в демо-режим:")
+        .build();
+    
+    const keyboard: InlineKeyboardMarkup = {
+        inline_keyboard: [
+            [
+                { text: "💼 Продавец", callback_data: "role_seller" },
+                { text: "📋 Супервайзер", callback_data: "role_supervisor" }
+            ],
+            [
+                { text: "📊 Руководство", callback_data: "role_manager" }
+            ]
         ],
     };
     return sendOrEdit(client, chatId, text, keyboard, messageId);
