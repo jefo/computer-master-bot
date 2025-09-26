@@ -51,15 +51,54 @@ const mainLoop = async () => {
                     // --- Report Data Input ---
                     if (state.step.startsWith("AWAITING_")) {
                         const reportData = state.reportData || {};
+                        
+                        // Validate that the input is a number
+                        const numberValue = parseFloat(text.replace(/[^\d.,-]/g, ''));
+                        if (isNaN(numberValue) || numberValue < 0) {
+                            await client.sendMessage({
+                                chat_id: chatId,
+                                text: "❌ Пожалуйста, введите корректное числовое значение (только цифры и десятичный разделитель)."
+                            });
+                            // Re-ask for the same input without advancing the state
+                            if (state.step === "AWAITING_REVENUE") await Views.askForRevenue(client, chatId, undefined);
+                            else if (state.step === "AWAITING_CASH") await Views.askForCashAmount(client, chatId, undefined);
+                            else if (state.step === "AWAITING_CARD") await Views.askForCardAmount(client, chatId, undefined);
+                            else if (state.step === "AWAITING_QR") await Views.askForQrAmount(client, chatId, undefined);
+                            else if (state.step === "AWAITING_TRANSFER") await Views.askForTransferAmount(client, chatId, undefined);
+                            else if (state.step === "AWAITING_RETURNS") await Views.askForReturnsAmount(client, chatId, undefined);
+                            else if (state.step === "AWAITING_EMERGENCY_REVENUE") await Views.showEmergencyClosePrompt(client, chatId, undefined);
+                            continue; // Skip further processing and wait for new input
+                        }
+
                         let nextStep = "";
 
-                        if (state.step === "AWAITING_REVENUE") { reportData.revenue = text; nextStep = "AWAITING_CASH"; await Views.askForCashAmount(client, chatId, undefined); }
-                        else if (state.step === "AWAITING_CASH") { reportData.cash = text; nextStep = "AWAITING_CARD"; await Views.askForCardAmount(client, chatId, undefined); }
-                        else if (state.step === "AWAITING_CARD") { reportData.card = text; nextStep = "AWAITING_QR"; await Views.askForQrAmount(client, chatId, undefined); }
-                        else if (state.step === "AWAITING_QR") { reportData.qr = text; nextStep = "AWAITING_TRANSFER"; await Views.askForTransferAmount(client, chatId, undefined); }
-                        else if (state.step === "AWAITING_TRANSFER") { reportData.returns = text; nextStep = "AWAITING_RETURNS"; await Views.askForReturnsAmount(client, chatId, undefined); }
+                        if (state.step === "AWAITING_REVENUE") { 
+                            reportData.revenue = numberValue; 
+                            nextStep = "AWAITING_CASH"; 
+                            await Views.askForCashAmount(client, chatId, undefined); 
+                        }
+                        else if (state.step === "AWAITING_CASH") { 
+                            reportData.cash = numberValue; 
+                            nextStep = "AWAITING_CARD"; 
+                            await Views.askForCardAmount(client, chatId, undefined); 
+                        }
+                        else if (state.step === "AWAITING_CARD") { 
+                            reportData.card = numberValue; 
+                            nextStep = "AWAITING_QR"; 
+                            await Views.askForQrAmount(client, chatId, undefined); 
+                        }
+                        else if (state.step === "AWAITING_QR") { 
+                            reportData.qr = numberValue; 
+                            nextStep = "AWAITING_TRANSFER"; 
+                            await Views.askForTransferAmount(client, chatId, undefined); 
+                        }
+                        else if (state.step === "AWAITING_TRANSFER") { 
+                            reportData.transfer = numberValue; 
+                            nextStep = "AWAITING_RETURNS"; 
+                            await Views.askForReturnsAmount(client, chatId, undefined); 
+                        }
                         else if (state.step === "AWAITING_RETURNS") { 
-                            reportData.returns = text; 
+                            reportData.returns = numberValue; 
                             // Send a NEW message asking for photos, don't save messageId as we won't edit it.
                             await Views.askForPhotos(client, chatId, undefined, 0);
                             conversationStates.set(chatId, {
@@ -71,9 +110,18 @@ const mainLoop = async () => {
                              continue;
                         }
                         else if (state.step === "AWAITING_EMERGENCY_REVENUE") {
-                             await Views.showShiftEndMessage(client, chatId, state.messageId!)
-                             console.log(`[${chatId}] Emergency closure with revenue: ${text}`);
-                             conversationStates.delete(chatId);
+                             // Validate emergency revenue value and ensure it's a positive number
+                             if (numberValue >= 0) {
+                                 await Views.showShiftEndMessage(client, chatId, state.messageId!)
+                                 console.log(`[${chatId}] Emergency closure with revenue: ${numberValue}`);
+                                 conversationStates.delete(chatId);
+                             } else {
+                                 await client.sendMessage({
+                                     chat_id: chatId,
+                                     text: "❌ Пожалуйста, введите корректное неотрицательное значение для выручки при экстренном закрытии."
+                                 });
+                                 await Views.showEmergencyClosePrompt(client, chatId, undefined);
+                             }
                              continue;
                         }
                         conversationStates.set(chatId, { ...state, step: nextStep, reportData });

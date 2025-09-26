@@ -161,34 +161,43 @@ export const askForPhotos = async (client: TelegramClient, chatId: number, messa
 };
 
 export const showReportReview = async (client: TelegramClient, chatId: number, messageId: number, reportData: any) => {
-    // Calculate total revenue
-    const totalRevenue = (reportData.revenue || 0) + (reportData.returns || 0); // Adding returns back to revenue
+    // Calculate total revenue (according to business logic: revenue = cash + card + qr + transfer - returns)
+    const cash = Number(reportData.cash) || 0;
+    const card = Number(reportData.card) || 0;
+    const qr = Number(reportData.qr) || 0;
+    const transfer = Number(reportData.transfer) || 0;
+    const returns = Number(reportData.returns) || 0;
     
-    const builder = new MessageBuilder()
+    const totalRevenue = cash + card + qr + transfer - returns;
+    
+        const builder = new MessageBuilder()
         .addTitle("📋 Подтверждение отчета")
         .newLine(2)
         .addBold("Детализация по видам оплаты:")
+        .newLine(2)
+        .addListItem(`💳 Безналичный расчет: ${card.toLocaleString('ru-RU')} руб.`)
         .newLine()
-        .addListItem(`💳 Безналичный расчет: ${(reportData.card || '5000').toLocaleString('ru-RU')} руб.`)
-        .addListItem(`💵 Наличные: ${(reportData.cash || '2000').toLocaleString('ru-RU')} руб.`)
-        .addListItem(`📱 Оплата по QR-коду: ${(reportData.qr || '1500').toLocaleString('ru-RU')} руб.`)
-        .addListItem(`🔄 Переводом: ${(reportData.transfer || '1500').toLocaleString('ru-RU')} руб.`)
+        .addListItem(`💵 Наличные: ${cash.toLocaleString('ru-RU')} руб.`)
         .newLine()
+        .addListItem(`📱 Оплата по QR-коду: ${qr.toLocaleString('ru-RU')} руб.`)
+        .newLine()
+        .addListItem(`🔄 Переводом: ${transfer.toLocaleString('ru-RU')} руб.`)
+        .newLine(2)
         .addBold("Возвраты:")
-        .newLine()
-        .addListItem(`↩️ Возвраты: ${(reportData.returns || '0').toLocaleString('ru-RU')} руб.`)
+        .newLine(2)
+        .addListItem(`↩️ Возвраты: ${returns.toLocaleString('ru-RU')} руб.`)
         .newLine(2)
         .addBold(`💰 Общая выручка: ${totalRevenue.toLocaleString('ru-RU')} руб.`)
         .newLine(2)
         .addText("📸 Приложено 4 фото-подтверждения:")
-        .newLine()
+        .newLine(2)
         .addText("• Фото подписи на конверте")
         .newLine()
         .addText("• Фото сводных чеков")
         .newLine()
         .addText("• Фото конверта с содержимым") 
         .newLine()
-        .addText("• Фото запечатанного конверта")
+        .addText("• Фoto запечатанного конверта")
         .newLine(2)
         .addText("Все верно?");
 
