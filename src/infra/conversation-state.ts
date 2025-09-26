@@ -3,10 +3,14 @@
 export type FlowType = "booking" | "emergency";
 
 export interface ConversationState {
-	step: "IDLE" | "SELECT_ITEMS" | "REVIEW_SELECTION" | "ASK_DATE";
+	step: "IDLE" | "SELECT_ITEMS" | "REVIEW_SELECTION" | "ASK_DATE" | "ASK_TIME" | "ASK_NAME" | "ASK_PHONE";
 	flowType?: FlowType;
 	selectedItems?: { id: string; name: string }[];
 	messageId?: number; // To edit the message with the selection/review card
+    selectedDate?: string;
+    selectedTime?: string;
+    clientName?: string;
+    clientPhone?: string;
 }
 
 
