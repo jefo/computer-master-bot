@@ -49,43 +49,9 @@ const mainLoop = async () => {
                         continue;
                     }
 
-                    // --- Report Data Input ---
+                    // --- Report Data Input (for AWAITING steps) ---
                     if (state.step.startsWith("AWAITING_")) {
                         const reportData = state.reportData || {};
-                        
-                        // Check if we're in editing mode for a specific field
-                        if (state.editingField) {
-                            // Validate that the input is a number
-                            const numberValue = parseFloat(text.replace(/[^\d.,-]/g, ''));
-                            if (isNaN(numberValue) || numberValue < 0) {
-                                await client.sendMessage({
-                                    chat_id: chatId,
-                                    text: "❌ Пожалуйста, введите корректное числовое значение (только цифры и десятичный разделитель)."
-                                });
-                                // Re-ask for the same input without advancing the state
-                                if (state.editingField === "revenue") await Views.askForRevenue(client, chatId, undefined);
-                                else if (state.editingField === "cash") await Views.askForCashAmount(client, chatId, undefined);
-                                else if (state.editingField === "card") await Views.askForCardAmount(client, chatId, undefined);
-                                else if (state.editingField === "qr") await Views.askForQrAmount(client, chatId, undefined);
-                                else if (state.editingField === "transfer") await Views.askForTransferAmount(client, chatId, undefined);
-                                else if (state.editingField === "returns") await Views.askForReturnsAmount(client, chatId, undefined);
-                                continue; // Skip further processing and wait for new input
-                            }
-                            
-                            // Update the specific field
-                            reportData[state.editingField] = numberValue;
-                            
-                            // Clear the editing field state
-                            conversationStates.set(chatId, { 
-                                ...state, 
-                                reportData,
-                                editingField: undefined
-                            });
-                            
-                            // Show the updated report summary with edit options
-                            await Views.showReportSummary(client, chatId, undefined, reportData);
-                            continue;
-                        }
                         
                         // Validate that the input is a number (for normal flow)
                         const numberValue = parseFloat(text.replace(/[^\d.,-]/g, ''));
@@ -101,7 +67,7 @@ const mainLoop = async () => {
                             else if (state.step === "AWAITING_QR") await Views.askForQrAmount(client, chatId, undefined);
                             else if (state.step === "AWAITING_TRANSFER") await Views.askForTransferAmount(client, chatId, undefined);
                             else if (state.step === "AWAITING_RETURNS") await Views.askForReturnsAmount(client, chatId, undefined);
-                            else if (state.step === "AWAITING_EMERGENCY_REVENUE") await Views.showEmergencyClosePrompt(client, chatId, undefined);
+                            else if (state.step === "AWAITING_EMERGENCY_REVENUE") await Views.askForEmergencyClosePrompt(client, chatId, undefined);
                             continue; // Skip further processing and wait for new input
                         }
 
@@ -161,10 +127,53 @@ const mainLoop = async () => {
                         conversationStates.set(chatId, { ...state, step: nextStep, reportData });
                         continue; // Continue to next update
                     }
+                    
+                    // --- Handle editing mode (works in any step when editingField is set) ---
+                    if (state.editingField) {
+                        const reportData = state.reportData || {};
+                        
+                        // Validate that the input is a number
+                        const numberValue = parseFloat(text.replace(/[^\d.,-]/g, ''));
+                        if (isNaN(numberValue) || numberValue < 0) {
+                            await client.sendMessage({
+                                chat_id: chatId,
+                                text: "❌ Пожалуйста, введите корректное числовое значение (только цифры и десятичный разделитель)."
+                            });
+                            // Re-ask for the same input without advancing the state
+                            if (state.editingField === "revenue") await Views.askForRevenue(client, chatId, undefined);
+                            else if (state.editingField === "cash") await Views.askForCashAmount(client, chatId, undefined);
+                            else if (state.editingField === "card") await Views.askForCardAmount(client, chatId, undefined);
+                            else if (state.editingField === "qr") await Views.askForQrAmount(client, chatId, undefined);
+                            else if (state.editingField === "transfer") await Views.askForTransferAmount(client, chatId, undefined);
+                            else if (state.editingField === "returns") await Views.askForReturnsAmount(client, chatId, undefined);
+                            continue; // Skip further processing and wait for new input
+                        }
+                        
+                        // Update the specific field
+                        reportData[state.editingField] = numberValue;
+                        
+                        // Clear the editing field state but keep in current step (should be REPORT_SUMMARY)
+                        conversationStates.set(chatId, { 
+                            ...state, 
+                            reportData,
+                            editingField: undefined
+                        });
+                        
+                        console.log(`[${chatId}] Updated report data:`, reportData);
+                        
+                        // Show the updated report summary with edit options (if still in summary step)
+                        if (state.step === "REPORT_SUMMARY") {
+                            await Views.showReportSummary(client, chatId, undefined, reportData);
+                        }
+                        continue;
+                    }
                     // Handle REPORT_SUMMARY step
                     else if (state.step === "REPORT_SUMMARY") {
-                        // This case will be handled by callback queries only, not text messages
-                        continue; // Skip text processing in this state, wait for callback
+                        // If we're in REPORT_SUMMARY but not in editing mode, text messages should be ignored
+                        if (!state.editingField) {
+                            console.log(`[${chatId}] Text message ignored in REPORT_SUMMARY state (not editing)`);
+                        }
+                        continue; // Skip text processing in this state, wait for callback or editing mode
                     }
                 }
 
@@ -234,11 +243,13 @@ const mainLoop = async () => {
                         // Extract field to edit (e.g., "edit_revenue", "edit_cash", etc.)
                         const fieldToEdit = data.substring(5); // Remove "edit_" prefix
                         
-                        // Set the editing field in state
+                        // Set the editing field in state while preserving the current step
                         conversationStates.set(chatId, { 
                             ...state, 
                             editingField: fieldToEdit 
                         });
+                        
+                        console.log(`[${chatId}] Setting editing field: ${fieldToEdit}, state:`, conversationStates.get(chatId));
                         
                         // Ask for the specific value to edit
                         if (fieldToEdit === "revenue") await Views.askForRevenue(client, chatId, messageId);
