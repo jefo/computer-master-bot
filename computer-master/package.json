@@ -1,0 +1,18 @@
+{
+  "name": "computer-master-bot",
+  "version": "1.0.0",
+  "description": "Telegram bot for computer master services and bookings",
+  "main": "index.ts",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "start": "bun run index.ts",
+    "dev": "bun run index.ts"
+  },
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  }
+}

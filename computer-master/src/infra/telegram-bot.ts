@@ -1,4 +1,4 @@
-import { TelegramClient } from "packages/telegram-client";
+import { TelegramClient } from "../../../../packages/telegram-client";
 import {
 	getConversationState,
 	setConversationState,
@@ -7,8 +7,8 @@ import {
 } from "./conversation-state";
 import * as Views from "./views/telegram-views";
 import { MessageBuilder } from "./message-builder";
-import { showPricesUseCase } from "@src/app/show-prices.use-case";
-import type { InlineKeyboardMarkup } from "packages/telegram-client/telegram-types";
+import { showPricesUseCase } from "../app/show-prices.use-case";
+import type { InlineKeyboardMarkup } from "../../../../packages/telegram-client/telegram-types";
 
 const BOT_TOKEN = process.env.BOT_TOKEN || "YOUR_BOT_TOKEN_HERE";
 const MASTER_CHAT_ID = process.env.MASTER_CHAT_ID;

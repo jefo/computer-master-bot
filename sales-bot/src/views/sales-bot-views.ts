@@ -1,6 +1,6 @@
 import type { TelegramClient } from "packages/telegram-client";
 import type { InlineKeyboardMarkup, Message } from "packages/telegram-client/telegram-types";
-import { MessageBuilder } from "@src/infra/message-builder";
+import { MessageBuilder } from "../../infra/message-builder";
 import { 
   getSellerById, 
   getShiftsForSeller, 
@@ -16,7 +16,7 @@ import {
   Seller,
   MonthlyStats,
   WorkMaterial
-} from "@src/app/mock-data";
+} from "../../app/mock-data";
 
 
 
@@ -466,24 +466,27 @@ export const showManagerSellerStats = async (client: TelegramClient, chatId: num
 
 // --- Report Form ---
 export const showReportForm = async (client: TelegramClient, chatId: number, messageId: number | undefined, reportData: any, editingField?: string) => {
+    // Ensure reportData is not null or undefined
+    const safeReportData = reportData || {};
+    
     // Status indicators
-    const cashStatus = (reportData.cash !== undefined && reportData.cash !== '') ? '✅' : '☑️';
-    const cardStatus = (reportData.card !== undefined && reportData.card !== '') ? '✅' : '☑️';
-    const qrStatus = (reportData.qr !== undefined && reportData.qr !== '') ? '✅' : '☑️';
-    const transferStatus = (reportData.transfer !== undefined && reportData.transfer !== '') ? '✅' : '☑️';
-    const returnsStatus = (reportData.returns !== undefined && reportData.returns !== '') ? '✅' : '☑️';
+    const cashStatus = (safeReportData.cash !== undefined && safeReportData.cash !== '') ? '✅' : '☑️';
+    const cardStatus = (safeReportData.card !== undefined && safeReportData.card !== '') ? '✅' : '☑️';
+    const qrStatus = (safeReportData.qr !== undefined && safeReportData.qr !== '') ? '✅' : '☑️';
+    const transferStatus = (safeReportData.transfer !== undefined && safeReportData.transfer !== '') ? '✅' : '☑️';
+    const returnsStatus = (safeReportData.returns !== undefined && safeReportData.returns !== '') ? '✅' : '☑️';
 
     // Format values or show placeholder
-    const cashValue = (reportData.cash !== undefined && reportData.cash !== '') ? 
-        `${Number(reportData.cash).toLocaleString('ru-RU')} руб.` : '...';
-    const cardValue = (reportData.card !== undefined && reportData.card !== '') ? 
-        `${Number(reportData.card).toLocaleString('ru-RU')} руб.` : '...';
-    const qrValue = (reportData.qr !== undefined && reportData.qr !== '') ? 
-        `${Number(reportData.qr).toLocaleString('ru-RU')} руб.` : '...';
-    const transferValue = (reportData.transfer !== undefined && reportData.transfer !== '') ? 
-        `${Number(reportData.transfer).toLocaleString('ru-RU')} руб.` : '...';
-    const returnsValue = (reportData.returns !== undefined && reportData.returns !== '') ? 
-        `${Number(reportData.returns).toLocaleString('ru-RU')} руб.` : '...';
+    const cashValue = (safeReportData.cash !== undefined && safeReportData.cash !== '') ? 
+        `${Number(safeReportData.cash).toLocaleString('ru-RU')} руб.` : '...';
+    const cardValue = (safeReportData.card !== undefined && safeReportData.card !== '') ? 
+        `${Number(safeReportData.card).toLocaleString('ru-RU')} руб.` : '...';
+    const qrValue = (safeReportData.qr !== undefined && safeReportData.qr !== '') ? 
+        `${Number(safeReportData.qr).toLocaleString('ru-RU')} руб.` : '...';
+    const transferValue = (safeReportData.transfer !== undefined && safeReportData.transfer !== '') ? 
+        `${Number(safeReportData.transfer).toLocaleString('ru-RU')} руб.` : '...';
+    const returnsValue = (safeReportData.returns !== undefined && safeReportData.returns !== '') ? 
+        `${Number(safeReportData.returns).toLocaleString('ru-RU')} руб.` : '...';
 
     // Calculate total if all values are present
     const allFieldsFilled = cashValue !== '...' && cardValue !== '...' && 
@@ -491,11 +494,11 @@ export const showReportForm = async (client: TelegramClient, chatId: number, mes
     
     let totalRevenueText = '...';
     if (allFieldsFilled) {
-        const cash = Number(reportData.cash) || 0;
-        const card = Number(reportData.card) || 0;
-        const qr = Number(reportData.qr) || 0;
-        const transfer = Number(reportData.transfer) || 0;
-        const returns = Number(reportData.returns) || 0;
+        const cash = Number(safeReportData.cash) || 0;
+        const card = Number(safeReportData.card) || 0;
+        const qr = Number(safeReportData.qr) || 0;
+        const transfer = Number(safeReportData.transfer) || 0;
+        const returns = Number(safeReportData.returns) || 0;
         
         const totalRevenue = cash + card + qr + transfer - returns;
         totalRevenueText = `${totalRevenue.toLocaleString('ru-RU')} руб.`;
@@ -583,11 +586,11 @@ export const showReportForm = async (client: TelegramClient, chatId: number, mes
 
     // Add confirm button only if all fields are filled
     if (allFieldsFilled) {
-        const cashValue = Number(reportData.cash) || 0;
-        const cardValue = Number(reportData.card) || 0;
-        const qrValue = Number(reportData.qr) || 0;
-        const transferValue = Number(reportData.transfer) || 0;
-        const returnsValue = Number(reportData.returns) || 0;
+        const cashValue = Number(safeReportData.cash) || 0;
+        const cardValue = Number(safeReportData.card) || 0;
+        const qrValue = Number(safeReportData.qr) || 0;
+        const transferValue = Number(safeReportData.transfer) || 0;
+        const returnsValue = Number(safeReportData.returns) || 0;
         
         const totalRevenue = cashValue + cardValue + qrValue + transferValue - returnsValue;
         keyboard.push([{ text: `✅ Подтвердить отчет: ${totalRevenue.toLocaleString('ru-RU')} руб.`, callback_data: "report_form_confirm" }]);

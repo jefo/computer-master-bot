@@ -1,0 +1,18 @@
+{
+  "name": "@prof-tinder-bot/bot",
+  "version": "1.0.0",
+  "description": "Telegram bot for finding creative professionals",
+  "main": "prof-tinder-bot-demo.ts",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "start": "bun run prof-tinder-bot-demo.ts",
+    "dev": "bun run prof-tinder-bot-demo.ts"
+  },
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  }
+}

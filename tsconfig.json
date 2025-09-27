@@ -30,10 +30,20 @@
       "@domain/*": ["src/domain/*"],
       "@infra/*": ["src/infra/*"],
       "@composition/*": ["src/composition/*"],
-      "@booking/*": ["packages/booking/src/*"]
+      "@booking/*": ["packages/booking/src/*"],
+      "@tg/*": ["packages/telegram-client/*"],
+      "@computer-master-src/*": ["computer-master/src/*"],
+      "@sales-bot-src/*": ["sales-bot/src/*"],
+      "@esim-bot-src/*": ["esim-bot/src/*"]
     },
     "typeRoots": ["node_modules/@types"]
   },
-  "include": ["src/**/*", "packages/**/*"],
+  "include": [
+    "computer-master/src/**/*",
+    "sales-bot/src/**/*",
+    "esim-bot/src/**/*",
+    "packages/**/*",
+    "src/**/*"
+  ],
   "exclude": ["node_modules", "dist"]
 }

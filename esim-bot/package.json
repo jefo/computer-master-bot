@@ -1,0 +1,19 @@
+{
+  "name": "esim-telegram-bot",
+  "version": "1.0.0",
+  "description": "Telegram bot for selling eSIM cards for world travel",
+  "main": "index.ts",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "start": "bun run index.ts",
+    "dev": "bun run index.ts",
+    "build": "tsc"
+  },
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  }
+}

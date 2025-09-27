@@ -1,8 +1,22 @@
 {
-  "name": "computer-master-bot",
-  "module": "index.ts",
-  "type": "module",
+  "name": "computer-master-sales-esim-bot-repo",
+  "version": "1.0.0",
+  "description": "Monorepo containing computer master bot, sales bot, and eSIM bot",
   "private": true,
+  "type": "module",
+  "workspaces": [
+    "computer-master",
+    "sales-bot",
+    "esim-bot"
+  ],
+  "scripts": {
+    "start:computer-master": "cd computer-master && bun run index.ts",
+    "start:sales": "cd sales-bot && bun run sales-bot-demo.ts",
+    "start:esim": "cd esim-bot && bun run index.ts",
+    "dev:computer-master": "cd computer-master && bun run index.ts",
+    "dev:sales": "cd sales-bot && bun run sales-bot-demo.ts",
+    "dev:esim": "cd esim-bot && bun run index.ts"
+  },
   "devDependencies": {
     "@types/bun": "latest"
   },
