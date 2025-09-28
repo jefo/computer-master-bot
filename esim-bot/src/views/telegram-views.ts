@@ -152,7 +152,7 @@ export const showMainMenu = async (
 		inline_keyboard: [
 			[{ text: "🌍 Каталог eSIM", callback_data: "show_esim_catalog" }],
 			[{ text: "📦 Мои заказы", callback_data: "my_orders" }],
-			[{ text: "💳 Популярные планы", callback_data: "show_popular_plans" }],
+			[{ text: "Популярные планы", callback_data: "show_popular_plans" }],
 			[{ text: "i Помощь", callback_data: "help" }],
 		],
 	};
@@ -252,7 +252,7 @@ export const showPopularPlans = async (
 
 	const planButtons = popularPlans.map((plan) => [
 		{
-			text: `${plan.icon} ${plan.country} - 💳${plan.price}`,
+			text: `${plan.icon} ${plan.country} - ${plan.price}`,
 			callback_data: `select_plan_${plan.id}`,
 		},
 	]);
@@ -319,7 +319,7 @@ export const showCountryESimOptions = async (
 	// Create buttons for each plan with visual improvements
 	const planButtons = plans.map((plan) => [
 		{
-			text: `${plan.icon} ${plan.description} - 💳${plan.price}`,
+			text: `${plan.icon} ${plan.description} - ${plan.price}`,
 			callback_data: `select_plan_${plan.id}`,
 		},
 	]);
@@ -365,7 +365,7 @@ export const showPlanDetails = async (
 		.newLine()
 		.addText(plan.coverage.join(", "))
 		.newLine(2)
-		.addSectionTitle("✨ Особенности тарифа", "✨")
+		.addSectionTitle("Особенности тарифа", "✨")
 		.newLine();
 
 	plan.features.forEach((feature) => {
@@ -391,7 +391,7 @@ export const showPlanDetails = async (
 		inline_keyboard: [
 			[
 				{
-					text: `💳 Купить за ${plan.price} ${plan.currency}`,
+					text: `Купить за ${plan.price} ${plan.currency}`,
 					callback_data: "purchase_plan",
 				},
 			],
@@ -415,7 +415,7 @@ export const showCheckout = async (
 	messageId?: number,
 ) => {
 	const text = new MessageBuilder()
-		.addTitle("✅ Подтверждение покупки", "💳")
+		.addTitle("Подтверждение покупки", "💳")
 		.newLine(2)
 		.addSuccess("Ваша eSIM-карта будет доступна после оплаты.")
 		.newLine(2)
@@ -464,7 +464,7 @@ export const showPurchaseConfirmation = async (
 	};
 
 	const text = new MessageBuilder()
-		.addTitle("🎉 Покупка успешно оформлена!", "✅")
+		.addTitle("Покупка успешно оформлена!", "🎉")
 		.newLine(2)
 		.addSuccess("Ваша eSIM-карта готова к использованию!")
 		.newLine(2)
@@ -551,7 +551,7 @@ export const showMyOrders = async (
 	];
 
 	const text = new MessageBuilder()
-		.addTitle("📦 Мои заказы", "📋")
+		.addTitle("Мои заказы", "📦")
 		.newLine(2)
 		.addInfo("Ваши предыдущие заказы eSIM-карт:")
 		.newLine(2)

@@ -1,187 +1,173 @@
 import { TelegramClient } from "packages/telegram-client";
 import * as Views from "./src/views/prof-tinder-bot-views";
-import { MOCK_ORDERS, MOCK_SPECIALISTS, MOCK_CLIENTS, Specialist, Client } from "./src/app/mock-data";
+import { MOCK_SPECIALISTS, Specialist } from "./src/app/mock-data";
 
-// --- Simple In-Memory State ---
+// --- State ---
+type FlowContext = 'swiping' | 'viewing_favorite';
+
 interface ConversationState {
-    step: string;
     messageId?: number;
-    orderIndex?: number; 
-    specialistIndex?: number; 
-    favoriteOrderIds: string[];
+    context: FlowContext;
+    shuffledSpecialistIds: string[];
+    currentIndex: number;
     favoriteSpecialistIds: string[];
-    specialistProfile?: Specialist; // To store mock specialist profile
-    clientProfile?: Client;       // To store mock client profile
 }
 const conversationStates = new Map<number, ConversationState>();
 
 const BOT_TOKEN = process.env.BOT_TOKEN;
 if (!BOT_TOKEN) {
-    console.error("Telegram Bot Token is required. Please set BOT_TOKEN environment variable.");
-    process.exit(1);
+    throw new Error("Telegram Bot Token is required. Please set BOT_TOKEN environment variable.");
 }
 
 const client = new TelegramClient(BOT_TOKEN);
 let offset = 0;
 
-// --- Callback Handlers ---
+// --- Utility Functions ---
 
-async function handleStartMatching(chatId: number, messageId: number, callbackQueryId: string) {
-    const state = conversationStates.get(chatId) || { step: "START", favoriteOrderIds: [], favoriteSpecialistIds: [] };
-    conversationStates.set(chatId, { ...state, step: 'VIEWING_SPECIALISTS', messageId, clientProfile: MOCK_CLIENTS[0] });
-    await Views.showSpecialistCard(client, chatId, 0, messageId);
-}
-
-async function handleClientRoleSelection(chatId: number, messageId: number, callbackQueryId: string) {
-    const state = conversationStates.get(chatId) || { step: "START", favoriteOrderIds: [], favoriteSpecialistIds: [] };
-    conversationStates.set(chatId, { ...state, step: 'CLIENT_MENU', messageId, clientProfile: MOCK_CLIENTS[0] });
-    await Views.showClientMenu(client, chatId, messageId);
-}
-
-async function handleSpecialistRoleSelection(chatId: number, messageId: number, callbackQueryId: string) {
-    const state = conversationStates.get(chatId) || { step: "START", favoriteOrderIds: [], favoriteSpecialistIds: [] };
-    conversationStates.set(chatId, { ...state, step: 'SPECIALIST_MENU', messageId, specialistProfile: MOCK_SPECIALISTS[0] });
-    await Views.showSpecialistMenu(client, chatId, messageId);
-}
-
-async function handleBackToMainMenu(chatId: number, messageId: number, callbackQueryId: string) {
-    const state = conversationStates.get(chatId) || { step: "START", favoriteOrderIds: [], favoriteSpecialistIds: [] };
-    conversationStates.set(chatId, { ...state, step: 'MAIN_MENU', messageId });
-    await Views.showMainMenu(client, chatId, messageId);
-}
-
-// --- Specialist Flow Handlers ---
-
-async function handleShowOrder(chatId: number, messageId: number, orderIndex: number, callbackQueryId: string) {
-    const state = conversationStates.get(chatId) || { step: "START", favoriteOrderIds: [], favoriteSpecialistIds: [] };
-    conversationStates.set(chatId, { ...state, step: 'VIEWING_ORDERS', orderIndex, messageId });
-    await Views.showOrderCard(client, chatId, orderIndex, messageId);
-}
-
-async function handleAddToFavorites(chatId: number, messageId: number, orderId: string, callbackQueryId: string) {
-    const state = conversationStates.get(chatId);
-    if (!state) return;
-
-    if (!state.favoriteOrderIds.includes(orderId)) {
-        state.favoriteOrderIds.push(orderId);
-        conversationStates.set(chatId, state);
-        await client.answerCallbackQuery({ callback_query_id: callbackQueryId, text: "Добавлено в избранное!" });
-    } else {
-        await client.answerCallbackQuery({ callback_query_id: callbackQueryId, text: "Уже в избранном." });
+function shuffle<T>(array: T[]): T[] {
+    for (let i = array.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [array[i], array[j]] = [array[j], array[i]];
     }
-    // Find the index of the order that was just interacted with
-    const currentOrderIndex = MOCK_ORDERS.findIndex(o => o.id === orderId);
-    if (currentOrderIndex !== -1) {
-        const nextIndex = (currentOrderIndex + 1) % MOCK_ORDERS.length;
-        state.orderIndex = nextIndex;
-        conversationStates.set(chatId, state);
-        // Show the next order card
-        await Views.showOrderCard(client, chatId, nextIndex, messageId);
-    } else {
-        console.warn(`Order with ID ${orderId} not found in MOCK_ORDERS.`);
-        await Views.showSpecialistMenu(client, chatId, messageId); // Go back to menu
+    return array;
+}
+
+// --- Core Logic Handlers ---
+
+async function startCommandHandler(chatId: number, messageId?: number) {
+    console.log(`[${chatId}] Received /start command`);
+    conversationStates.delete(chatId);
+    await Views.showRoleSelectionMenu(client, chatId, messageId);
+}
+
+async function handleRoleClient(chatId: number, messageId: number) {
+    // Initialize state for the client flow if it doesn't exist
+    if (!conversationStates.has(chatId)) {
+        conversationStates.set(chatId, {
+            shuffledSpecialistIds: [],
+            currentIndex: 0,
+            favoriteSpecialistIds: [],
+            context: 'swiping',
+        });
     }
+    await Views.showProfessionFilterScreen(client, chatId, messageId);
 }
 
-async function handleApplyToOrder(chatId: number, messageId: number, orderId: string, callbackQueryId: string) {
-    await client.answerCallbackQuery({ callback_query_id: callbackQueryId, text: `Вы откликнулись на заказ ${orderId}! Клиент получит уведомление. (Заглушка)` });
-    // In a real app, this would send a notification to the client
+async function handleProfessionFilter(chatId: number, messageId: number, profession: string) {
+    console.log(`[${chatId}] Filtering for profession: ${profession}`);
+
+    const matchingSpecialists = MOCK_SPECIALISTS.filter(s => s.profession === profession);
+    const specialistIds = matchingSpecialists.map(s => s.id);
+    
+    const state = conversationStates.get(chatId) || { favoriteSpecialistIds: [] };
+
+    conversationStates.set(chatId, {
+        ...state,
+        shuffledSpecialistIds: shuffle(specialistIds),
+        currentIndex: 0,
+        messageId: messageId,
+        context: 'swiping',
+    });
+
+    await showNextSpecialist(chatId, messageId);
 }
 
-async function handleViewSpecialistFavorites(chatId: number, messageId: number, callbackQueryId: string) {
+async function showNextSpecialist(chatId: number, messageId: number) {
     const state = conversationStates.get(chatId);
-    if (!state) return;
+    if (!state) {
+        return startCommandHandler(chatId, messageId);
+    }
 
-    await Views.showFavorites(client, chatId, state.favoriteOrderIds, messageId);
+    const { shuffledSpecialistIds, currentIndex } = state;
+    if (currentIndex >= shuffledSpecialistIds.length) {
+        return Views.showNoMoreSpecialists(client, chatId, messageId);
+    }
+
+    const specialistId = shuffledSpecialistIds[currentIndex];
+    const specialist = MOCK_SPECIALISTS.find(s => s.id === specialistId);
+    if (!specialist) {
+        state.currentIndex++;
+        conversationStates.set(chatId, state);
+        return showNextSpecialist(chatId, messageId);
+    }
+
+    state.context = 'swiping';
+    conversationStates.set(chatId, state);
+
+    await Views.showSpecialistCard(client, chatId, specialist, 
+        { text: "👎 Пропустить", data: "show_next_specialist" }, 
+        messageId
+    );
 }
 
-async function handleViewSpecialistProfile(chatId: number, messageId: number, callbackQueryId: string) {
+async function handleShowNext(chatId: number, messageId: number) {
     const state = conversationStates.get(chatId);
-    if (!state) return;
-
-    await Views.showProfile(client, chatId, messageId);
+    if (!state) {
+        return startCommandHandler(chatId, messageId);
+    }
+    state.currentIndex++;
+    conversationStates.set(chatId, state);
+    await showNextSpecialist(chatId, messageId);
 }
 
-// --- Client Flow Handlers ---
-
-async function handleShowSpecialist(chatId: number, messageId: number, specialistIndex: number, callbackQueryId: string) {
-    const state = conversationStates.get(chatId) || { step: "START", favoriteOrderIds: [], favoriteSpecialistIds: [] };
-    conversationStates.set(chatId, { ...state, step: 'VIEWING_SPECIALISTS', specialistIndex, messageId });
-    await Views.showSpecialistCard(client, chatId, specialistIndex, messageId);
-}
-
-async function handleAddSpecialistToFavorites(chatId: number, messageId: number, specialistId: string, callbackQueryId: string) {
+async function handleAddToFavorites(chatId: number, messageId: number, callbackQueryId: string, specialistId: string) {
     const state = conversationStates.get(chatId);
-    if (!state) return;
+    if (!state) {
+        return startCommandHandler(chatId, messageId);
+    }
 
+    let alertText = "";
     if (!state.favoriteSpecialistIds.includes(specialistId)) {
         state.favoriteSpecialistIds.push(specialistId);
-        conversationStates.set(chatId, state);
-        await client.answerCallbackQuery({ callback_query_id: callbackQueryId, text: "Исполнитель добавлен в избранное!" });
+        alertText = "Добавлено в избранное!";
     } else {
-        await client.answerCallbackQuery({ callback_query_id: callbackQueryId, text: "Исполнитель уже в избранном." });
+        alertText = "Уже в избранном.";
     }
-    // Find the index of the specialist that was just interacted with
-    const currentSpecialistIndex = MOCK_SPECIALISTS.findIndex(s => s.id === specialistId);
-    if (currentSpecialistIndex !== -1) {
-        const nextIndex = (currentSpecialistIndex + 1);
-        // DEMO FINALE
-        if (nextIndex > 2) {
-            return Views.showDemoConclusion(client, chatId, messageId);
-        }
-        state.specialistIndex = nextIndex;
-        conversationStates.set(chatId, state);
-        // Show the next specialist card
-        await Views.showSpecialistCard(client, chatId, nextIndex, messageId);
+    await client.answerCallbackQuery({ callback_query_id: callbackQueryId, text: alertText });
+
+    if (state.context === 'swiping') {
+        await handleShowNext(chatId, messageId);
     } else {
-        console.warn(`Specialist with ID ${specialistId} not found in MOCK_SPECIALISTS.`);
-        await Views.showClientMenu(client, chatId, messageId); // Go back to menu
+        // If viewing a favorite, do nothing after adding, stay on the card
     }
 }
 
-async function handleContactSpecialist(chatId: number, messageId: number, specialistId: string, callbackQueryId: string) {
-    await client.answerCallbackQuery({ callback_query_id: callbackQueryId, text: `Вы запросили контакт ${specialistId}. (Заглушка)` });
-    // In a real app, this would initiate a direct message or provide contact info
-}
+async function handleContact(chatId: number, messageId: number, callbackQueryId: string, specialistId: string) {
+    const alertText = "Отлично! Мы уведомим специалиста о вашем интересе. В полной версии здесь откроется защищенный чат для обсуждения деталей проекта.";
+    await client.answerCallbackQuery({ callback_query_id: callbackQueryId, text: alertText, show_alert: true });
 
-async function handleViewClientFavorites(chatId: number, messageId: number, callbackQueryId: string) {
     const state = conversationStates.get(chatId);
-    if (!state) return;
-
-    await Views.showClientFavorites(client, chatId, state.favoriteSpecialistIds, messageId);
+    if (state && state.context === 'swiping') {
+        await handleShowNext(chatId, messageId);
+    }
 }
 
-async function handleViewClientProfile(chatId: number, messageId: number, callbackQueryId: string) {
+async function handleShowFavorites(chatId: number, messageId: number) {
     const state = conversationStates.get(chatId);
-    if (!state) return;
-
-    await Views.showClientProfile(client, chatId, messageId);
+    const favorites = MOCK_SPECIALISTS.filter(s => state?.favoriteSpecialistIds.includes(s.id));
+    await Views.showFavoritesScreen(client, chatId, favorites, messageId);
 }
 
-// --- Callback Router ---
-const callbackRouter = new Map<string, (chatId: number, messageId: number, callbackQueryId: string) => Promise<void>>([
-    ['start_matching', handleStartMatching],
-    ['back_to_main_menu', handleBackToMainMenu],
-    ['role_client', handleClientRoleSelection],
-    ['role_specialist', handleSpecialistRoleSelection],
-    
-    // Specialist Flow
-    ['back_to_specialist_menu', (chatId, messageId, callbackQueryId) => handleSpecialistRoleSelection(chatId, messageId, callbackQueryId)], // Alias for back button
-    ['specialist_view_orders', (chatId, messageId, callbackQueryId) => handleShowOrder(chatId, messageId, 0, callbackQueryId)],
-    ['specialist_view_favorites', (chatId, messageId, callbackQueryId) => handleViewSpecialistFavorites(chatId, messageId, callbackQueryId)],
-    ['specialist_view_profile', (chatId, messageId, callbackQueryId) => handleViewSpecialistProfile(chatId, messageId, callbackQueryId)],
-    ['apply_to_order_', (chatId, messageId, callbackQueryId) => handleApplyToOrder(chatId, messageId, conversationStates.get(chatId)?.orderIndex ? MOCK_ORDERS[conversationStates.get(chatId)!.orderIndex!].id : '', callbackQueryId)], // Dynamic handler for apply
+async function handleViewSpecialist(chatId: number, messageId: number, specialistId: string) {
+    const specialist = MOCK_SPECIALISTS.find(s => s.id === specialistId);
+    if (!specialist) return;
 
-    // Client Flow
-    ['back_to_client_menu', (chatId, messageId, callbackQueryId) => handleClientRoleSelection(chatId, messageId, callbackQueryId)], // Alias for back button
-    ['client_view_specialists', (chatId, messageId, callbackQueryId) => handleShowSpecialist(chatId, messageId, 0, callbackQueryId)],
-    ['client_view_favorites', (chatId, messageId, callbackQueryId) => handleViewClientFavorites(chatId, messageId, callbackQueryId)],
-    ['client_view_profile', (chatId, messageId, callbackQueryId) => handleViewClientProfile(chatId, messageId, callbackQueryId)],
-]);
+    const state = conversationStates.get(chatId);
+    if (state) {
+        state.context = 'viewing_favorite';
+        conversationStates.set(chatId, state);
+    }
 
-console.log("Prof-Tinder Bot starting with stakeholder demo flow...");
+    await Views.showSpecialistCard(client, chatId, specialist, 
+        { text: "⬅️ Назад к избранному", data: "show_favorites" }, 
+        messageId
+    );
+}
 
-const mainLoop = async () => {
+// --- Main Loop ---
+
+async function main() {
+    console.log("Bot starting, strictly following spec...");
     while (true) {
         try {
             const updates = await client.getUpdates({ offset, timeout: 30 });
@@ -193,68 +179,51 @@ const mainLoop = async () => {
                 if (!chatId) continue;
 
                 if (update.message?.text?.startsWith("/start")) {
-                    console.log(`[${chatId}] Received /start command`);
-                    conversationStates.delete(chatId);
-                    await Views.showHookScreen(client, chatId);
+                    await startCommandHandler(chatId, message.message_id);
                     continue;
                 }
 
                 if (update.callback_query) {
-                    const data = update.callback_query.data;
-                    const messageId = update.callback_query.message!.message_id;
-                    const callbackQueryId = update.callback_query.id; // Get the correct callback_query_id
+                    const { data, id: callbackQueryId, message: queryMessage } = update.callback_query;
+                    const messageId = queryMessage!.message_id;
                     console.log(`[${chatId}] Callback: ${data}`);
 
-                    // Handle dynamic routes for Specialist Flow
-                    if (data.startsWith('show_order_')) {
-                        const orderIndex = parseInt(data.split('_')[2], 10);
-                        await handleShowOrder(chatId, messageId, orderIndex, callbackQueryId);
-                        continue;
-                    }
-                    if (data.startsWith('add_to_favorites_order_')) {
-                        const orderId = data.substring('add_to_favorites_order_'.length);
-                        await handleAddToFavorites(chatId, messageId, orderId, callbackQueryId);
-                        continue;
-                    }
-                    if (data.startsWith('apply_to_order_')) {
-                        const orderId = data.substring('apply_to_order_'.length);
-                        await handleApplyToOrder(chatId, messageId, orderId, callbackQueryId);
-                        continue;
-                    }
+                    const [action, ...args] = data.split('_');
 
-                    // Handle dynamic routes for Client Flow
-                    if (data.startsWith('show_specialist_')) {
-                        const specialistIndex = parseInt(data.split('_')[2], 10);
-                        await handleShowSpecialist(chatId, messageId, specialistIndex, callbackQueryId);
-                        continue;
-                    }
-                    if (data.startsWith('add_to_favorites_specialist_')) {
-                        const specialistId = data.substring('add_to_favorites_specialist_'.length);
-                        await handleAddSpecialistToFavorites(chatId, messageId, specialistId, callbackQueryId);
-                        continue;
-                    }
-                    if (data.startsWith('contact_specialist_')) {
-                        const specialistId = data.substring('contact_specialist_'.length);
-                        await handleContactSpecialist(chatId, messageId, specialistId, callbackQueryId);
-                        continue;
-                    }
-
-                    const handler = callbackRouter.get(data);
-                    if (handler) {
-                        await handler(chatId, messageId, callbackQueryId);
-                    } else {
-                        console.warn(`[${chatId}] No handler found for callback data: ${data}`);
-                        // If no specific handler, still acknowledge to dismiss loading spinner
+                    if (action === 'role' && args[0] === 'client') {
+                        await handleRoleClient(chatId, messageId);
                         await client.answerCallbackQuery({ callback_query_id: callbackQueryId });
+                    } else if (action === 'filter' && args[0] === 'profession') {
+                        const profession = args.slice(1).join('_');
+                        await handleProfessionFilter(chatId, messageId, profession);
+                        await client.answerCallbackQuery({ callback_query_id: callbackQueryId });
+                    } else if (data === 'show_next_specialist') {
+                        await handleShowNext(chatId, messageId);
+                        await client.answerCallbackQuery({ callback_query_id: callbackQueryId });
+                    } else if (data === 'show_favorites') {
+                        await handleShowFavorites(chatId, messageId);
+                        await client.answerCallbackQuery({ callback_query_id: callbackQueryId });
+                    } else if (action === 'view' && args[0] === 'specialist') {
+                        const specialistId = args.slice(1).join('_');
+                        await handleViewSpecialist(chatId, messageId, specialistId);
+                        await client.answerCallbackQuery({ callback_query_id: callbackQueryId });
+                    } else if (action === 'favorite') {
+                        const specialistId = args.join('_');
+                        await handleAddToFavorites(chatId, messageId, callbackQueryId, specialistId);
+                    } else if (action === 'contact') {
+                        const specialistId = args.join('_');
+                        await handleContact(chatId, messageId, callbackQueryId, specialistId);
+                    } else {
+                        console.warn(`[${chatId}] Unhandled callback: ${data}`);
+                        await client.answerCallbackQuery({ callback_query_id: callbackQueryId }); // Silent acknowledgement
                     }
                 }
-
             }
         } catch (error) {
             console.error("Critical error in main loop:", error);
-            await new Promise(resolve => setTimeout(resolve, 5000));
+            await new Promise(resolve => setTimeout(resolve, 5000)); // wait 5s before retry
         }
     }
-};
+}
 
-mainLoop();
+main();
