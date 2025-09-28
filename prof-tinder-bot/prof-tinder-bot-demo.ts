@@ -1,16 +1,22 @@
 import { TelegramClient } from "packages/telegram-client";
 import * as Views from "./src/views/prof-tinder-bot-views";
-import { MOCK_SPECIALISTS, Specialist } from "./src/app/mock-data";
+import { MOCK_ORDERS, MOCK_SPECIALISTS, Order, Specialist } from "./src/app/mock-data";
 
 // --- State ---
-type FlowContext = 'swiping' | 'viewing_favorite';
+type FlowContext = 'swiping_specs' | 'swiping_orders' | 'viewing_favorite_spec' | 'viewing_favorite_order';
 
 interface ConversationState {
     messageId?: number;
     context: FlowContext;
+    // Client flow state
     shuffledSpecialistIds: string[];
-    currentIndex: number;
+    currentSpecialistIndex: number;
     favoriteSpecialistIds: string[];
+    // Specialist flow state
+    shuffledOrderIds: string[];
+    currentOrderIndex: number;
+    favoriteOrderIds: string[];
+    appliedOrderIds: string[]; // New!
 }
 const conversationStates = new Map<number, ConversationState>();
 
@@ -22,8 +28,7 @@ if (!BOT_TOKEN) {
 const client = new TelegramClient(BOT_TOKEN);
 let offset = 0;
 
-// --- Utility Functions ---
-
+// --- Utility ---
 function shuffle<T>(array: T[]): T[] {
     for (let i = array.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
@@ -32,136 +37,149 @@ function shuffle<T>(array: T[]): T[] {
     return array;
 }
 
-// --- Core Logic Handlers ---
+function initState(chatId: number) {
+    if (!conversationStates.has(chatId)) {
+        conversationStates.set(chatId, {
+            context: 'swiping_specs',
+            shuffledSpecialistIds: [],
+            currentSpecialistIndex: 0,
+            favoriteSpecialistIds: [],
+            shuffledOrderIds: [],
+            currentOrderIndex: 0,
+            favoriteOrderIds: [],
+            appliedOrderIds: [],
+        });
+    }
+}
 
+// --- Generic Handlers ---
 async function startCommandHandler(chatId: number, messageId?: number) {
     console.log(`[${chatId}] Received /start command`);
     conversationStates.delete(chatId);
     await Views.showRoleSelectionMenu(client, chatId, messageId);
 }
 
+// --- Client (Employer) Flow Handlers ---
+
 async function handleRoleClient(chatId: number, messageId: number) {
-    // Initialize state for the client flow if it doesn't exist
-    if (!conversationStates.has(chatId)) {
-        conversationStates.set(chatId, {
-            shuffledSpecialistIds: [],
-            currentIndex: 0,
-            favoriteSpecialistIds: [],
-            context: 'swiping',
-        });
-    }
+    initState(chatId);
     await Views.showProfessionFilterScreen(client, chatId, messageId);
 }
 
 async function handleProfessionFilter(chatId: number, messageId: number, profession: string) {
-    console.log(`[${chatId}] Filtering for profession: ${profession}`);
-
-    const matchingSpecialists = MOCK_SPECIALISTS.filter(s => s.profession === profession);
-    const specialistIds = matchingSpecialists.map(s => s.id);
-    
-    const state = conversationStates.get(chatId) || { favoriteSpecialistIds: [] };
-
-    conversationStates.set(chatId, {
-        ...state,
-        shuffledSpecialistIds: shuffle(specialistIds),
-        currentIndex: 0,
-        messageId: messageId,
-        context: 'swiping',
-    });
-
+    const state = conversationStates.get(chatId)!;
+    const matching = MOCK_SPECIALISTS.filter(s => s.profession === profession);
+    state.shuffledSpecialistIds = shuffle(matching.map(s => s.id));
+    state.currentSpecialistIndex = 0;
+    state.context = 'swiping_specs';
     await showNextSpecialist(chatId, messageId);
 }
 
 async function showNextSpecialist(chatId: number, messageId: number) {
-    const state = conversationStates.get(chatId);
-    if (!state) {
-        return startCommandHandler(chatId, messageId);
-    }
-
-    const { shuffledSpecialistIds, currentIndex } = state;
-    if (currentIndex >= shuffledSpecialistIds.length) {
+    const state = conversationStates.get(chatId)!;
+    if (state.currentSpecialistIndex >= state.shuffledSpecialistIds.length) {
         return Views.showNoMoreSpecialists(client, chatId, messageId);
     }
-
-    const specialistId = shuffledSpecialistIds[currentIndex];
-    const specialist = MOCK_SPECIALISTS.find(s => s.id === specialistId);
-    if (!specialist) {
-        state.currentIndex++;
-        conversationStates.set(chatId, state);
-        return showNextSpecialist(chatId, messageId);
-    }
-
-    state.context = 'swiping';
-    conversationStates.set(chatId, state);
-
-    await Views.showSpecialistCard(client, chatId, specialist, 
-        { text: "👎 Пропустить", data: "show_next_specialist" }, 
-        messageId
-    );
+    const specialistId = state.shuffledSpecialistIds[state.currentSpecialistIndex];
+    const specialist = MOCK_SPECIALISTS.find(s => s.id === specialistId)!;
+    await Views.showSpecialistCard(client, chatId, specialist, { text: "👎 Пропустить", data: "show_next_spec" }, messageId);
 }
 
-async function handleShowNext(chatId: number, messageId: number) {
-    const state = conversationStates.get(chatId);
-    if (!state) {
-        return startCommandHandler(chatId, messageId);
-    }
-    state.currentIndex++;
-    conversationStates.set(chatId, state);
-    await showNextSpecialist(chatId, messageId);
-}
-
-async function handleAddToFavorites(chatId: number, messageId: number, callbackQueryId: string, specialistId: string) {
-    const state = conversationStates.get(chatId);
-    if (!state) {
-        return startCommandHandler(chatId, messageId);
-    }
-
-    let alertText = "";
-    if (!state.favoriteSpecialistIds.includes(specialistId)) {
-        state.favoriteSpecialistIds.push(specialistId);
-        alertText = "Добавлено в избранное!";
-    } else {
-        alertText = "Уже в избранном.";
-    }
-    await client.answerCallbackQuery({ callback_query_id: callbackQueryId, text: alertText });
-
-    if (state.context === 'swiping') {
-        await handleShowNext(chatId, messageId);
-    } else {
-        // If viewing a favorite, do nothing after adding, stay on the card
-    }
-}
-
-async function handleContact(chatId: number, messageId: number, callbackQueryId: string, specialistId: string) {
-    const alertText = "Отлично! Мы уведомим специалиста о вашем интересе. В полной версии здесь откроется защищенный чат для обсуждения деталей проекта.";
-    await client.answerCallbackQuery({ callback_query_id: callbackQueryId, text: alertText, show_alert: true });
-
-    const state = conversationStates.get(chatId);
-    if (state && state.context === 'swiping') {
-        await handleShowNext(chatId, messageId);
-    }
-}
-
-async function handleShowFavorites(chatId: number, messageId: number) {
-    const state = conversationStates.get(chatId);
-    const favorites = MOCK_SPECIALISTS.filter(s => state?.favoriteSpecialistIds.includes(s.id));
-    await Views.showFavoritesScreen(client, chatId, favorites, messageId);
+async function handleShowSpecFavorites(chatId: number, messageId: number) {
+    const state = conversationStates.get(chatId)!;
+    const favorites = MOCK_SPECIALISTS.filter(s => state.favoriteSpecialistIds.includes(s.id));
+    await Views.showSpecialistFavoritesScreen(client, chatId, favorites, messageId);
 }
 
 async function handleViewSpecialist(chatId: number, messageId: number, specialistId: string) {
-    const specialist = MOCK_SPECIALISTS.find(s => s.id === specialistId);
-    if (!specialist) return;
+    const specialist = MOCK_SPECIALISTS.find(s => s.id === specialistId)!;
+    const state = conversationStates.get(chatId)!;
+    state.context = 'viewing_favorite_spec';
+    await Views.showSpecialistCard(client, chatId, specialist, { text: "⬅️ К избранному", data: "show_spec_favorites" }, messageId);
+}
 
-    const state = conversationStates.get(chatId);
-    if (state) {
-        state.context = 'viewing_favorite';
-        conversationStates.set(chatId, state);
+// --- Specialist (Worker) Flow Handlers ---
+
+async function handleRoleSpecialist(chatId: number, messageId: number) {
+    initState(chatId);
+    await Views.showOrderCategoryFilterScreen(client, chatId, messageId);
+}
+
+const categorySkillMap: Record<string, string[]> = {
+    "Дизайн": ["UI/UX", "Figma", "Mobile Design", "Prototyping", "Logo Design", "Branding", "Illustrator", "Photoshop"],
+    "Видео": ["Video Editing", "Premiere Pro", "After Effects", "Sound Design"],
+    "Разработка": ["Python", "Node.js", "Telegram API", "NLP"],
+    "Тексты": ["Copywriting", "SEO", "Marketing", "IT"],
+};
+
+async function handleOrderCategoryFilter(chatId: number, messageId: number, category: string) {
+    const state = conversationStates.get(chatId)!;
+    const skills = categorySkillMap[category] || [];
+    const matching = MOCK_ORDERS.filter(o => o.skills.some(s => skills.includes(s)));
+    state.shuffledOrderIds = shuffle(matching.map(o => o.id));
+    state.currentOrderIndex = 0;
+    state.context = 'swiping_orders';
+    await showNextOrder(chatId, messageId);
+}
+
+async function showNextOrder(chatId: number, messageId: number) {
+    const state = conversationStates.get(chatId)!;
+    if (state.currentOrderIndex >= state.shuffledOrderIds.length) {
+        return Views.showNoMoreOrders(client, chatId, messageId);
     }
+    const orderId = state.shuffledOrderIds[state.currentOrderIndex];
+    const order = MOCK_ORDERS.find(o => o.id === orderId)!;
+    await Views.showOrderCard(client, chatId, order, { text: "👎 Пропустить", data: "show_next_order" }, state.appliedOrderIds, messageId);
+}
 
-    await Views.showSpecialistCard(client, chatId, specialist, 
-        { text: "⬅️ Назад к избранному", data: "show_favorites" }, 
-        messageId
-    );
+async function handleShowOrderFavorites(chatId: number, messageId: number) {
+    const state = conversationStates.get(chatId)!;
+    const favorites = MOCK_ORDERS.filter(o => state.favoriteOrderIds.includes(o.id));
+    await Views.showOrderFavoritesScreen(client, chatId, favorites, messageId);
+}
+
+async function handleViewOrder(chatId: number, messageId: number, orderId: string) {
+    const order = MOCK_ORDERS.find(o => o.id === orderId)!;
+    const state = conversationStates.get(chatId)!;
+    state.context = 'viewing_favorite_order';
+    await Views.showOrderCard(client, chatId, order, { text: "⬅️ К избранному", data: "show_order_favorites" }, state.appliedOrderIds, messageId);
+}
+
+// --- Universal Action Handlers ---
+
+async function handleFavorite(chatId: number, messageId: number, callbackQueryId: string, type: 'spec' | 'order', id: string) {
+    const state = conversationStates.get(chatId)!;
+    const favoriteList = type === 'spec' ? state.favoriteSpecialistIds : state.favoriteOrderIds;
+    const alertText = favoriteList.includes(id) ? "Уже в избранном." : "Добавлено в избранное!";
+    if (!favoriteList.includes(id)) favoriteList.push(id);
+    await client.answerCallbackQuery({ callback_query_id: callbackQueryId, text: alertText });
+    if (state.context === 'swiping_specs') { state.currentSpecialistIndex++; await showNextSpecialist(chatId, messageId); }
+    if (state.context === 'swiping_orders') { state.currentOrderIndex++; await showNextOrder(chatId, messageId); }
+}
+
+async function handleContactOrApply(chatId: number, messageId: number, callbackQueryId: string, type: 'spec' | 'order', id: string) {
+    const state = conversationStates.get(chatId)!;
+    if (type === 'spec') {
+        await client.answerCallbackQuery({ callback_query_id: callbackQueryId, text: "Отлично! Мы уведомим специалиста о вашем интересе.", show_alert: true });
+        if (state.context === 'swiping_specs') { state.currentSpecialistIndex++; await showNextSpecialist(chatId, messageId); }
+    } else { // type === 'order'
+        if (state.appliedOrderIds.includes(id)) {
+            await client.answerCallbackQuery({ callback_query_id: callbackQueryId, text: "Вы уже откликнулись на этот заказ." });
+            return;
+        }
+        state.appliedOrderIds.push(id);
+        await client.answerCallbackQuery({ callback_query_id: callbackQueryId, text: "Вы откликнулись на заказ!" });
+        
+        // Redraw the same card to show the button change
+        const orderId = state.context === 'swiping_orders' 
+            ? state.shuffledOrderIds[state.currentOrderIndex] 
+            : id; // if viewing from favorites, the id is the orderId
+        const order = MOCK_ORDERS.find(o => o.id === orderId)!;
+        const contextualCallback = state.context === 'swiping_orders'
+            ? { text: "👎 Пропустить", data: "show_next_order" }
+            : { text: "⬅️ К избранному", data: "show_order_favorites" };
+        await Views.showOrderCard(client, chatId, order, contextualCallback, state.appliedOrderIds, messageId);
+    }
 }
 
 // --- Main Loop ---
@@ -171,7 +189,6 @@ async function main() {
     while (true) {
         try {
             const updates = await client.getUpdates({ offset, timeout: 30 });
-
             for (const update of updates) {
                 offset = update.update_id + 1;
                 const message = update.message || update.callback_query?.message;
@@ -189,39 +206,36 @@ async function main() {
                     console.log(`[${chatId}] Callback: ${data}`);
 
                     const [action, ...args] = data.split('_');
+                    
+                    // Simple callbacks
+                    if (data === 'role_client') { await handleRoleClient(chatId, messageId); }
+                    else if (data === 'role_specialist') { await handleRoleSpecialist(chatId, messageId); }
+                    else if (data === 'show_next_spec') { conversationStates.get(chatId)!.currentSpecialistIndex++; await showNextSpecialist(chatId, messageId); }
+                    else if (data === 'show_next_order') { conversationStates.get(chatId)!.currentOrderIndex++; await showNextOrder(chatId, messageId); }
+                    else if (data === 'show_spec_favorites') { await handleShowSpecFavorites(chatId, messageId); }
+                    else if (data === 'show_order_favorites') { await handleShowOrderFavorites(chatId, messageId); }
+                    
+                    // Callbacks with data
+                    else if (action === 'filter' && args[0] === 'profession') { await handleProfessionFilter(chatId, messageId, args.slice(1).join('_')); }
+                    else if (action === 'filter' && args[0] === 'order') { await handleOrderCategoryFilter(chatId, messageId, args.slice(1).join('_')); }
+                    else if (action === 'view' && args[0] === 'specialist') { await handleViewSpecialist(chatId, messageId, args.slice(1).join('_')); }
+                    else if (action === 'view' && args[0] === 'order') { await handleViewOrder(chatId, messageId, args.slice(1).join('_')); }
+                    else if (action === 'favorite' && args[0] === 'spec') { await handleFavorite(chatId, messageId, callbackQueryId, 'spec', args.slice(1).join('_')); }
+                    else if (action === 'favorite' && args[0] === 'order') { await handleFavorite(chatId, messageId, callbackQueryId, 'order', args.slice(1).join('_')); }
+                    else if (action === 'contact') { await handleContactOrApply(chatId, messageId, callbackQueryId, 'spec', args.join('_')); }
+                    else if (action === 'apply') { await handleContactOrApply(chatId, messageId, callbackQueryId, 'order', args.join('_')); }
 
-                    if (action === 'role' && args[0] === 'client') {
-                        await handleRoleClient(chatId, messageId);
+                    else { console.warn(`[${chatId}] Unhandled callback: ${data}`); }
+                    
+                    // Acknowledge all callbacks silently if not handled by action handlers
+                    if (!['favorite', 'contact', 'apply'].includes(action)) {
                         await client.answerCallbackQuery({ callback_query_id: callbackQueryId });
-                    } else if (action === 'filter' && args[0] === 'profession') {
-                        const profession = args.slice(1).join('_');
-                        await handleProfessionFilter(chatId, messageId, profession);
-                        await client.answerCallbackQuery({ callback_query_id: callbackQueryId });
-                    } else if (data === 'show_next_specialist') {
-                        await handleShowNext(chatId, messageId);
-                        await client.answerCallbackQuery({ callback_query_id: callbackQueryId });
-                    } else if (data === 'show_favorites') {
-                        await handleShowFavorites(chatId, messageId);
-                        await client.answerCallbackQuery({ callback_query_id: callbackQueryId });
-                    } else if (action === 'view' && args[0] === 'specialist') {
-                        const specialistId = args.slice(1).join('_');
-                        await handleViewSpecialist(chatId, messageId, specialistId);
-                        await client.answerCallbackQuery({ callback_query_id: callbackQueryId });
-                    } else if (action === 'favorite') {
-                        const specialistId = args.join('_');
-                        await handleAddToFavorites(chatId, messageId, callbackQueryId, specialistId);
-                    } else if (action === 'contact') {
-                        const specialistId = args.join('_');
-                        await handleContact(chatId, messageId, callbackQueryId, specialistId);
-                    } else {
-                        console.warn(`[${chatId}] Unhandled callback: ${data}`);
-                        await client.answerCallbackQuery({ callback_query_id: callbackQueryId }); // Silent acknowledgement
                     }
                 }
             }
         } catch (error) {
             console.error("Critical error in main loop:", error);
-            await new Promise(resolve => setTimeout(resolve, 5000)); // wait 5s before retry
+            await new Promise(resolve => setTimeout(resolve, 5000));
         }
     }
 }

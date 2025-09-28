@@ -2,9 +2,10 @@ import type { TelegramClient } from "packages/telegram-client";
 import type {
 	InlineKeyboardMarkup,
 	Message,
+    InlineKeyboardButton,
 } from "packages/telegram-client/telegram-types";
 import { MessageBuilder } from "../infra/message-builder";
-import { MOCK_SPECIALISTS, Specialist } from "../app/mock-data";
+import { MOCK_ORDERS, MOCK_SPECIALISTS, Order, Specialist } from "../app/mock-data";
 
 // --- Generic Helper ---
 async function sendOrEdit(
@@ -38,7 +39,7 @@ async function sendOrEdit(
 	}
 }
 
-// --- Spec-based Flow ---
+// --- Entry Point ---
 
 export const showRoleSelectionMenu = async (
 	client: TelegramClient,
@@ -59,6 +60,8 @@ export const showRoleSelectionMenu = async (
 	return sendOrEdit(client, chatId, text, keyboard, messageId);
 };
 
+// --- Client (Employer) Flow ---
+
 export const showProfessionFilterScreen = async (
     client: TelegramClient,
     chatId: number,
@@ -76,7 +79,7 @@ export const showProfessionFilterScreen = async (
 
     const keyboard: InlineKeyboardMarkup = {
         inline_keyboard: [
-            [{ text: "⭐ Мое избранное", callback_data: "show_favorites" }],
+            [{ text: "⭐ Мое избранное", callback_data: "show_spec_favorites" }],
             ...professionButtons,
         ],
     };
@@ -84,28 +87,20 @@ export const showProfessionFilterScreen = async (
     return sendOrEdit(client, chatId, text, keyboard, messageId);
 };
 
-export const showFavoritesScreen = async (
+export const showSpecialistFavoritesScreen = async (
     client: TelegramClient,
     chatId: number,
     favoriteSpecialists: Specialist[],
     messageId?: number,
 ) => {
-    const text = new MessageBuilder()
-        .addBold("⭐ Ваше избранное")
-        .build();
+    const text = new MessageBuilder().addBold("⭐ Избранные специалисты").build();
 
-    let buttons: InlineKeyboardButton[][] = [];
-    if (favoriteSpecialists.length === 0) {
-        buttons.push([{
-            text: "Список пуст",
-            callback_data: "no_op"
-        }]);
-    } else {
-        buttons = favoriteSpecialists.map(s => ([{
+    let buttons: InlineKeyboardButton[][] = favoriteSpecialists.length > 0
+        ? favoriteSpecialists.map(s => ([{
             text: `👤 ${s.name} - ${s.profession}`,
             callback_data: `view_specialist_${s.id}`
-        }]));
-    }
+        }]))
+        : [[{ text: "Список пуст", callback_data: "no_op" }]];
 
     const keyboard: InlineKeyboardMarkup = {
         inline_keyboard: [
@@ -124,7 +119,6 @@ export const showSpecialistCard = async (
     contextualCallback: { text: string, data: string },
 	messageId?: number,
 ) => {
-
 	const text = new MessageBuilder()
         .addText(`👤 ${specialist.name} — ${specialist.profession}`)
         .newLine()
@@ -144,7 +138,7 @@ export const showSpecialistCard = async (
 			[
 				{ text: "👍 Написать", callback_data: `contact_${specialist.id}` },
                 { text: contextualCallback.text, callback_data: contextualCallback.data },
-				{ text: "⭐ В избранное", callback_data: `favorite_${specialist.id}` },
+				{ text: "⭐ В избранное", callback_data: `favorite_spec_${specialist.id}` },
 			],
 		],
 	};
@@ -157,16 +151,107 @@ export const showNoMoreSpecialists = async (
     chatId: number,
     messageId?: number,
 ) => {
-    const text = new MessageBuilder()
-        .addText("На данный момент это все специалисты по вашему запросу.")
-        .build();
-    
+    const text = new MessageBuilder().addText("На данный момент это все специалисты по вашему запросу.").build();
     const keyboard: InlineKeyboardMarkup = {
         inline_keyboard: [
-            [{ text: "⭐ Посмотреть избранное", callback_data: "show_favorites" }],
+            [{ text: "⭐ Посмотреть избранное", callback_data: "show_spec_favorites" }],
             [{ text: "Искать заново", callback_data: "role_client" }]
         ]
     };
+    return sendOrEdit(client, chatId, text, keyboard, messageId);
+}
 
+// --- Specialist (Worker) Flow ---
+
+export const showOrderCategoryFilterScreen = async (
+    client: TelegramClient,
+    chatId: number,
+    messageId?: number,
+) => {
+    const text = new MessageBuilder().addBold("Какие заказы вы ищете?").build();
+
+    // Simple categorization based on skills for the demo
+    const categories = ["Дизайн", "Видео", "Разработка", "Тексты"];
+    const categoryButtons = categories.map(c => ([{ text: c, callback_data: `filter_order_${c}` }]));
+
+    const keyboard: InlineKeyboardMarkup = {
+        inline_keyboard: [
+            [{ text: "⭐ Мое избранное", callback_data: "show_order_favorites" }],
+            ...categoryButtons,
+        ],
+    };
+
+    return sendOrEdit(client, chatId, text, keyboard, messageId);
+};
+
+export const showOrderFavoritesScreen = async (
+    client: TelegramClient,
+    chatId: number,
+    favoriteOrders: Order[],
+    messageId?: number,
+) => {
+    const text = new MessageBuilder().addBold("⭐ Избранные заказы").build();
+
+    let buttons: InlineKeyboardButton[][] = favoriteOrders.length > 0
+        ? favoriteOrders.map(o => ([{ text: `🧾 ${o.title}`, callback_data: `view_order_${o.id}` }]))
+        : [[{ text: "Список пуст", callback_data: "no_op" }]];
+
+    const keyboard: InlineKeyboardMarkup = {
+        inline_keyboard: [
+            ...buttons,
+            [{ text: "⬅️ Назад к фильтрам", callback_data: "role_specialist" }],
+        ]
+    };
+
+    return sendOrEdit(client, chatId, text, keyboard, messageId);
+}
+
+export const showOrderCard = async (
+	client: TelegramClient,
+	chatId: number,
+	order: Order,
+    contextualCallback: { text: string, data: string },
+    appliedOrderIds: string[],
+	messageId?: number,
+) => {
+	const text = new MessageBuilder()
+        .addBold(`🧾 ${order.title}`)
+        .newLine(2)
+        .addText(order.description)
+        .newLine(2)
+        .addBold("Бюджет:").addText(` ${order.budget}`)
+        .newLine()
+        .addBold("Навыки:").addText(` #${order.skills.join(" #")}`)
+		.build();
+
+    const applyButton: InlineKeyboardButton = appliedOrderIds.includes(order.id)
+        ? { text: "Вы откликнулись ✅", callback_data: "no_op" }
+        : { text: "👍 Откликнуться", callback_data: `apply_${order.id}` };
+
+	const keyboard: InlineKeyboardMarkup = {
+		inline_keyboard: [
+			[
+				applyButton,
+                { text: contextualCallback.text, callback_data: contextualCallback.data },
+				{ text: "⭐ В избранное", callback_data: `favorite_order_${order.id}` },
+			],
+		],
+	};
+
+	return sendOrEdit(client, chatId, text, keyboard, messageId);
+};
+
+export const showNoMoreOrders = async (
+    client: TelegramClient,
+    chatId: number,
+    messageId?: number,
+) => {
+    const text = new MessageBuilder().addText("На данный момент это все заказы по вашему запросу.").build();
+    const keyboard: InlineKeyboardMarkup = {
+        inline_keyboard: [
+            [{ text: "⭐ Посмотреть избранное", callback_data: "show_order_favorites" }],
+            [{ text: "Искать заново", callback_data: "role_specialist" }]
+        ]
+    };
     return sendOrEdit(client, chatId, text, keyboard, messageId);
 }
