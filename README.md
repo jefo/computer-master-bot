@@ -36,6 +36,11 @@ For development:
 - Sales Bot: `bun run dev:sales`
 - eSIM Bot: `bun run dev:esim`
 
+### PoC eSIM Travel Bot Quick Start
+```bash
+./run-esim-poc.sh
+```
+
 ## Computer Master Bot
 
 This bot allows:
@@ -105,3 +110,16 @@ esim-bot/
 │   └── views/               # View components
 ├── index.ts                 # Entry point to application
 ```
+
+## PoC eSIM Travel Implementation
+
+The eSIM bot includes a complete Proof-of-Concept implementation with:
+- All screens fully functional but using fixtures instead of real data
+- Realistic UI/UX that creates the impression of a production application
+- Instant response interface without artificial delays
+- Complete purchase flow simulation
+- Order history with mock data
+
+### Documentation
+- `esim-poc-requirements.md` - Requirements for the PoC implementation
+- `esim-poc-implementation.md` - Implementation details

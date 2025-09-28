@@ -1,55 +1,72 @@
 import type { TelegramClient } from "packages/telegram-client";
 import type { InlineKeyboardMarkup, Message } from "packages/telegram-client/telegram-types";
 import { MessageBuilder } from "../infra/message-builder";
+import { MOCK_ORDERS, MOCK_SPECIALISTS, MOCK_CLIENTS } from "../app/mock-data";
 
 // --- Generic Helper ---
 async function sendOrEdit(client: TelegramClient, chatId: number, text: string, keyboard: InlineKeyboardMarkup, messageId?: number): Promise<Message> {
     const payload = { chat_id: chatId, text, reply_markup: keyboard, parse_mode: "MarkdownV2" as const };
     if (messageId) {
         try {
+            // Important: Edit message requires the new text to be different from the old one.
             const result = await client.editMessageText({ ...payload, message_id: messageId });
-            // editMessageText can return true, so we construct a mock Message for consistency
             return typeof result === 'boolean' ? { message_id: messageId, chat: { id: chatId }, date: Date.now() } : result;
         } catch (e) {
-            // If message is not modified, Telegram throws an error. We can safely ignore it.
-            console.warn(`Could not edit message: ${e}`);
-            return { message_id: messageId, chat: { id: chatId }, date: Date.now() };
+            console.warn(`Could not edit message: ${e}. Sending a new one.`);
+            return await client.sendMessage(payload);
         }
     } else {
         return await client.sendMessage(payload);
     }
 }
 
-import type { TelegramClient } from "packages/telegram-client";
-import type { InlineKeyboardMarkup, Message } from "packages/telegram-client/telegram-types";
-import { MessageBuilder } from "../infra/message-builder";
+// --- Main Demo Flow ---
 
-// --- Generic Helper ---
-async function sendOrEdit(client: TelegramClient, chatId: number, text: string, keyboard: InlineKeyboardMarkup, messageId?: number): Promise<Message> {
-    const payload = { chat_id: chatId, text, reply_markup: keyboard, parse_mode: "MarkdownV2" as const };
-    if (messageId) {
-        try {
-            const result = await client.editMessageText({ ...payload, message_id: messageId });
-            // editMessageText can return true, so we construct a mock Message for consistency
-            return typeof result === 'boolean' ? { message_id: messageId, chat: { id: chatId }, date: Date.now() } : result;
-        } catch (e) {
-            // If message is not modified, Telegram throws an error. We can safely ignore it.
-            console.warn(`Could not edit message: ${e}`);
-            return { message_id: messageId, chat: { id: chatId }, date: Date.now() };
-        }
-    } else {
-        return await client.sendMessage(payload);
-    }
-}
-
-
-export const showRoleSelectionMenu = async (client: TelegramClient, chatId: number, messageId?: number) => {
+export const showHookScreen = async (client: TelegramClient, chatId: number, messageId?: number) => {
     const text = new MessageBuilder()
-        .addTitle("Добро пожаловать в HIRE-бот!")
+        .addText("Вы — заказчик, ищущий UI/UX дизайнера для нового проекта.")
         .newLine(2)
-        .addText("Это бот для быстрого поиска проверенных креативных специалистов.")
+        .addText("Бот подберет для вас лучших специалистов в формате 'Tinder'.")
         .newLine(2)
-        .addBold("Выберите вашу роль:")
+        .addBold("Нажмите 'Начать', чтобы увидеть первого кандидата.")
+        .build();
+
+    const keyboard: InlineKeyboardMarkup = {
+        inline_keyboard: [
+            [{ text: "🚀 Начать подбор", callback_data: "start_matching" }]
+        ]
+    };
+
+    return sendOrEdit(client, chatId, text, keyboard, messageId);
+};
+
+export const showDemoConclusion = async (client: TelegramClient, chatId: number, messageId: number) => {
+    const text = new MessageBuilder()
+        .addText("Вы просмотрели несколько кандидатов.")
+        .newLine()
+        .addText("Понравившихся можно найти в 'Избранном'.")
+        .newLine(2)
+        .addBold("Так легко и быстро вы можете найти нужного специалиста.")
+        .build();
+
+    const keyboard: InlineKeyboardMarkup = {
+        inline_keyboard: [
+            [
+                { text: "⭐ Показать избранное", callback_data: "client_view_favorites" },
+                { text: "🔄 Продолжить подбор", callback_data: "start_matching" },
+            ],
+            [{ text: "🏠 В главное меню", callback_data: "back_to_main_menu" }],
+        ]
+    };
+
+    return sendOrEdit(client, chatId, text, keyboard, messageId);
+}
+
+export const showMainMenu = async (client: TelegramClient, chatId: number, messageId?: number) => {
+    const text = new MessageBuilder()
+        .addTitle("Главное меню")
+        .newLine(2)
+        .addText("Вы можете продолжить поиск или переключить роль.")
         .build();
 
     const keyboard: InlineKeyboardMarkup = {
@@ -60,69 +77,228 @@ export const showRoleSelectionMenu = async (client: TelegramClient, chatId: numb
     };
 
     return sendOrEdit(client, chatId, text, keyboard, messageId);
-}; 
+};
 
-// --- Placeholder welcome messages ---
 
-export const showClientWelcome = async (client: TelegramClient, chatId: number, messageId: number) => {
+// --- Client Flow ---
+
+export const showClientMenu = async (client: TelegramClient, chatId: number, messageId: number) => {
     const text = new MessageBuilder()
-        .addText("Вы выбрали роль: ")
-        .addBold("Клиент")
+        .addTitle("Меню клиента")
         .newLine(2)
-        .addText("Здесь вы сможете создавать заказы и находить лучших исполнителей.")
-        .addText(" (раздел в разработке)")
+        .addText("Что вы хотите найти?")
         .build();
     
     const keyboard: InlineKeyboardMarkup = {
         inline_keyboard: [
-            [{ text: "⬅️ Назад к выбору роли", callback_data: "back_to_role_selection" }]
+            [{ text: "🚀 Смотреть исполнителей", callback_data: "client_view_specialists" }],
+            [{ text: "⭐ Мое избранное", callback_data: "client_view_favorites" }],
+            [{ text: "⚙️ Мой профиль", callback_data: "client_view_profile" }],
+            [{ text: "⬅️ Назад в главное меню", callback_data: "back_to_main_menu" }]
         ]
     };
 
     return sendOrEdit(client, chatId, text, keyboard, messageId);
 }
 
-export const showSpecialistWelcome = async (client: TelegramClient, chatId: number, messageId: number) => {
-    const text = new MessageBuilder()
-        .addText("Вы выбрали роль: ")
-        .addBold("Исполнитель")
-        .newLine(2)
-        .addText("Чтобы начать, создайте свой профиль. Это займет всего пару минут.")
-        .build();
+export const showSpecialistCard = async (client: TelegramClient, chatId: number, specialistIndex: number, messageId?: number) => {
+    const specialist = MOCK_SPECIALISTS[specialistIndex];
     
-    const keyboard: InlineKeyboardMarkup = {
-        inline_keyboard: [
-            [{ text: "✍️ Создать профиль", callback_data: "create_profile_start" }],
-            [{ text: "⬅️ Назад к выбору роли", callback_data: "back_to_role_selection" }]
-        ]
-    };
-
-    return sendOrEdit(client, chatId, text, keyboard, messageId);
-}
-
-// --- Profile Creation Form ---
-
-export const showProfileForm = async (client: TelegramClient, chatId: number, profileData: any, editingField?: string, messageId?: number) => {
-    const nameStatus = profileData.name ? '✅' : '☑️';
-    const nameIndicator = editingField === 'name' ? '👉' : '';
-    const nameValue = profileData.name || 'не заполнено';
+    // DEMO FINALE
+    if (!specialist || specialistIndex > 2) {
+        return showDemoConclusion(client, chatId, messageId!)
+    }
 
     const text = new MessageBuilder()
-        .addTitle("Создание профиля исполнителя")
+        .addBold(`👤 ${specialist.name} — ${specialist.profession}`)
         .newLine(2)
-        .addText(`${nameStatus} Имя: ${nameValue} ${nameIndicator}`)
+        .addText(`⭐️ *Опыт:* ${specialist.experience}`)
         .newLine()
-        // ... other fields will be added here
+        .addText(`💲 *Ставка:* ${specialist.rate}`)
+        .newLine()
+        .addText(`📍 *Город:* ${specialist.city}`)
+        .newLine(2)
+        .addRawText(`_${MessageBuilder.escapeMarkdownV2(specialist.about)}_`)
+        .newLine(2)
+        .addText(`*Навыки:* #${specialist.tags.join(' #')}`)
+        .newLine()
+        .addText(`*Портфолио:* ${specialist.portfolio}`)
         .build();
+
+    const nextIndex = (specialistIndex + 1);
 
     const keyboard: InlineKeyboardMarkup = {
         inline_keyboard: [
-            [{ text: `${nameStatus} Имя`, callback_data: "edit_profile_name" }],
-            // ... other edit buttons will be added here
-            [{ text: "⬅️ Назад", callback_data: "back_to_specialist_welcome" }],
+            [
+                { text: "👍 Написать", callback_data: `contact_specialist_${specialist.id}` },
+                { text: "👎 Дальше", callback_data: `show_specialist_${nextIndex}` },
+                { text: "⭐ В избранное", callback_data: `add_to_favorites_specialist_${specialist.id}` },
+            ],
+            [{ text: "🏠 В главное меню", callback_data: "back_to_main_menu" }],
         ]
     };
 
     return sendOrEdit(client, chatId, text, keyboard, messageId);
 }
 
+export const showClientFavorites = async (client: TelegramClient, chatId: number, favoriteSpecialistIds: string[], messageId: number) => {
+    const builder = new MessageBuilder()
+        .addTitle("⭐ Мое избранное (Клиент)");
+
+    if (!favoriteSpecialistIds || favoriteSpecialistIds.length === 0) {
+        builder.newLine(2).addText("У вас пока нет избранных исполнителей.");
+    } else {
+        builder.newLine(2).addText("Вот ваши сохраненные исполнители:");
+        favoriteSpecialistIds.forEach(id => {
+            const specialist = MOCK_SPECIALISTS.find(s => s.id === id);
+            if (specialist) {
+                builder.newLine().addListItem(`${specialist.name} - ${specialist.profession}`);
+            }
+        });
+    }
+
+    const keyboard: InlineKeyboardMarkup = {
+        inline_keyboard: [
+            [{ text: "⬅️ В меню", callback_data: "back_to_client_menu" }]
+        ]
+    };
+
+    return sendOrEdit(client, chatId, builder.build(), keyboard, messageId);
+}
+
+export const showClientProfile = async (client: TelegramClient, chatId: number, messageId: number) => {
+    const clientProfile = MOCK_CLIENTS[0]; // Assuming a single mock client for now
+    const text = new MessageBuilder()
+        .addTitle("⚙️ Мой профиль (Клиент)")
+        .newLine(2)
+        .addBold(`Название: ${clientProfile.name}`)
+        .newLine()
+        .addText(`Компания: ${clientProfile.company}`)
+        .newLine()
+        .addText(`О себе: ${clientProfile.description}`)
+        .newLine()
+        .addText(`Контакт: ${clientProfile.contactEmail}`)
+        .build();
+    
+    const keyboard: InlineKeyboardMarkup = {
+        inline_keyboard: [
+            [{ text: "⬅️ В меню", callback_data: "back_to_client_menu" }]
+        ]
+    };
+
+    return sendOrEdit(client, chatId, text, keyboard, messageId);
+}
+
+// --- Specialist Flow ---
+
+export const showSpecialistMenu = async (client: TelegramClient, chatId: number, messageId: number) => {
+    const text = new MessageBuilder()
+        .addTitle("Меню исполнителя")
+        .newLine(2)
+        .addText("Ваш профиль активен и показывается клиентам.")
+        .newLine(2)
+        .addText("Что вы хотите сделать?")
+        .build();
+    
+    const keyboard: InlineKeyboardMarkup = {
+        inline_keyboard: [
+            [{ text: "🚀 Смотреть заказы", callback_data: "specialist_view_orders" }],
+            [{ text: "⭐ Мое избранное", callback_data: "specialist_view_favorites" }],
+            [{ text: "⚙️ Мой профиль", callback_data: "specialist_view_profile" }],
+            [{ text: "⬅️ Назад в главное меню", callback_data: "back_to_main_menu" }]
+        ]
+    };
+
+    return sendOrEdit(client, chatId, text, keyboard, messageId);
+}
+
+export const showOrderCard = async (client: TelegramClient, chatId: number, orderIndex: number, messageId: number) => {
+    const order = MOCK_ORDERS[orderIndex];
+    if (!order) {
+        const text = new MessageBuilder().addText("Заказов больше нет. Хотите начать сначала?").build();
+        const keyboard: InlineKeyboardMarkup = { inline_keyboard: [
+            [{ text: "🔄 Начать сначала", callback_data: `specialist_view_orders` }],
+            [{ text: "⬅️ В меню", callback_data: "back_to_specialist_menu" }]
+        ] };
+        return sendOrEdit(client, chatId, text, keyboard, messageId);
+    }
+
+    const text = new MessageBuilder()
+        .addBold(order.title)
+        .newLine(2)
+        .addText(order.description)
+        .newLine(2)
+        .addText(`Бюджет: ${order.budget}`)
+        .build();
+
+    const nextIndex = (orderIndex + 1) % MOCK_ORDERS.length; // Loop through mock orders
+
+    const keyboard: InlineKeyboardMarkup = {
+        inline_keyboard: [
+            [
+                { text: "👎 Пропустить", callback_data: `show_order_${nextIndex}` },
+                { text: "⭐ В избранное", callback_data: `add_to_favorites_order_${order.id}` },
+            ],
+            [{ text: "👍 Откликнуться", callback_data: `apply_to_order_${order.id}` }],
+            [{ text: "⬅️ В меню", callback_data: "back_to_specialist_menu" }],
+        ]
+    };
+
+    return sendOrEdit(client, chatId, text, keyboard, messageId);
+}
+
+export const showFavorites = async (client: TelegramClient, chatId: number, favoriteOrderIds: string[], messageId: number) => {
+    const builder = new MessageBuilder()
+        .addTitle("⭐ Мое избранное");
+
+    if (!favoriteOrderIds || favoriteOrderIds.length === 0) {
+        builder.newLine(2).addText("У вас пока нет избранных заказов.");
+    } else {
+        builder.newLine(2).addText("Вот ваши сохраненные заказы:");
+        favoriteOrderIds.forEach(id => {
+            const order = MOCK_ORDERS.find(o => o.id === id);
+            if (order) {
+                builder.newLine().addListItem(order.title);
+            }
+        });
+    }
+
+    const keyboard: InlineKeyboardMarkup = {
+        inline_keyboard: [
+            [{ text: "⬅️ В меню", callback_data: "back_to_specialist_menu" }]
+        ]
+    };
+
+    return sendOrEdit(client, chatId, builder.build(), keyboard, messageId);
+}
+
+export const showProfile = async (client: TelegramClient, chatId: number, messageId: number) => {
+    const specialistProfile = MOCK_SPECIALISTS[0]; // Assuming a single mock specialist for now
+    const text = new MessageBuilder()
+        .addTitle("⚙️ Мой профиль (Исполнитель)")
+        .newLine(2)
+        .addBold(`Имя: ${specialistProfile.name}`)
+        .newLine()
+        .addText(`Профессия: ${specialistProfile.profession}`)
+        .newLine()
+        .addText(`Опыт: ${specialistProfile.experience}`)
+        .newLine()
+        .addText(`Ставка: ${specialistProfile.rate}`)
+        .newLine()
+        .addText(`Город: ${specialistProfile.city}`)
+        .newLine()
+        .addText(`Теги: ${specialistProfile.tags.join(', ')}`)
+        .newLine()
+        .addText(`Портфолио: ${specialistProfile.portfolio}`)
+        .newLine()
+        .addText(`О себе: ${specialistProfile.about}`)
+        .build();
+    
+    const keyboard: InlineKeyboardMarkup = {
+        inline_keyboard: [
+            [{ text: "⬅️ В меню", callback_data: "back_to_specialist_menu" }]
+        ]
+    };
+
+    return sendOrEdit(client, chatId, text, keyboard, messageId);
+}

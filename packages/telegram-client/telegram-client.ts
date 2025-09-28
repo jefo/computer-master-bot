@@ -426,6 +426,16 @@ export class TelegramClient {
 		);
 		return response.result!;
 	}
+
+	/**
+	 * Delete a message
+	 */
+	async deleteMessage(
+		params: { chat_id: number | string; message_id: number },
+	): Promise<boolean> {
+		const response = await this.request<boolean>("deleteMessage", params);
+		return response.result!;
+	}
 }
 
 export class TelegramError extends Error {

@@ -14,10 +14,10 @@ export class MessageBuilder {
 		return this;
 	}
 
-    addBold(text: string): MessageBuilder {
-        this.parts.push(`*${MessageBuilder.escapeMarkdownV2(text)}*`);
-        return this;
-    }
+	addBold(text: string): MessageBuilder {
+		this.parts.push(`*${MessageBuilder.escapeMarkdownV2(text)}*`);
+		return this;
+	}
 
 	addParagraph(text: string): MessageBuilder {
 		this.parts.push(MessageBuilder.escapeMarkdownV2(text));
