@@ -1,16 +1,14 @@
-import { TelegramClient } from "packages/telegram-client";
+import { showPricesUseCase } from "@computer-master-src/app/show-prices.use-case";
 import {
 	getConversationState,
 	setConversationState,
-	type ConversationState,
-	type FlowType,
-} from "@src/infra/conversation-state";
+} from "@computer-master-src/infra/conversation-state";
+import { MessageBuilder } from "@computer-master-src/infra/message-builder";
+import { TelegramClient } from "packages/telegram-client";
 import type { InlineKeyboardMarkup } from "packages/telegram-client/telegram-types";
-import { MessageBuilder } from "@src/infra/message-builder";
-import { showPricesUseCase } from "@src/app/show-prices.use-case";
 
 // --- Data Sources ---
-const getEmergencyProblems = () => [
+export const getEmergencyProblems = () => [
 	{ id: "no_power", name: "🖥 Компьютер не включается" },
 	{ id: "bsod", name: "💀 Синий экран смерти" },
 	{ id: "virus_slow", name: "🐌 Вирусы / Медленная работа" },
@@ -25,7 +23,7 @@ const getServices = async () => {
 
 export const showMainMenu = async (client: TelegramClient, chatId: number) => {
 	const welcomeMessage = new MessageBuilder()
-		.addText("🤖 Здравствуйте! Я личный робот-ассистент Компьютерного Мастера.")
+		.addTitle("Здравствуйте! Я личный робот-ассистент Компьютерного Мастера.", "🤖")
 		.newLine(2)
 		.addText("Передам вашу заявку незамедлительно! Чем могу помочь?")
 		.build();
@@ -170,9 +168,8 @@ export const showDateSelectionScreen = async (
 
 	setConversationState(chatId, { ...state, step: "ASK_DATE" });
 
-	const builder = new MessageBuilder().addText(
-		"🗓 На какую дату вы хотели бы записаться?",
-	);
+	const builder = new MessageBuilder()
+		.addTitle("На какую дату вы хотели бы записаться?", "🗓");
 
 	const dateKeyboard = [
 		[
@@ -209,7 +206,7 @@ export const showTimeSelectionScreen = async (
 
 	setConversationState(chatId, { ...state, step: "ASK_TIME" });
 
-	const builder = new MessageBuilder().addText("🕓 Выберите удобное время:");
+	const builder = new MessageBuilder().addTitle("Выберите удобное время:", "🕓");
 
 	const timeSlots = [
 		"Ближайшее время",

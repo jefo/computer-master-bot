@@ -1,22 +1,53 @@
 import type { TelegramClient } from "packages/telegram-client";
 import type { InlineKeyboardMarkup } from "packages/telegram-client/telegram-types";
 import { MessageBuilder } from "../infra/message-builder";
+import { getConversationState, setConversationState } from "src/infra/conversation-state";
 
 // Mock data for eSIM plans - in a real app, this would come from an API
 const mockESimPlans = [
+	{
+		id: "eu_3days",
+		country: "Европа",
+		description: "3 дня, 5 ГБ",
+		price: 12,
+		currency: "USD",
+		coverage: ["DE", "FR", "IT", "ES", "NL"],
+		icon: "🇪",
+		popular: false,
+		features: [
+			"Мгновенная активация",
+			"Поддержка 4G",
+		],
+	},
 	{
 		id: "eu_7days",
 		country: "Европа",
 		description: "7 дней, 10 ГБ",
 		price: 25,
 		currency: "USD",
-		coverage: ["DE", "FR", "IT", "ES", "NL"],
+		coverage: ["DE", "FR", "IT", "ES", "NL", "UK", "CH"],
 		icon: "🇪",
 		popular: true,
 		features: [
 			"Безлимитный WhatsApp",
 			"Мгновенная активация",
 			"Поддержка 4G/5G",
+		],
+	},
+	{
+		id: "eu_15days",
+		country: "Европа",
+		description: "15 дней, 25 ГБ",
+		price: 45,
+		currency: "USD",
+		coverage: ["DE", "FR", "IT", "ES", "NL", "UK", "CH", "SE", "NO"],
+		icon: "🇪",
+		popular: false,
+		features: [
+			"Безлимитный мессенджеры",
+			"Мгновенная активация",
+			"Поддержка 4G/5G",
+			"Локальный IP",
 		],
 	},
 	{
@@ -29,6 +60,37 @@ const mockESimPlans = [
 		icon: "🇺",
 		popular: false,
 		features: ["Мгновенная активация", "Поддержка 4G", "Локальный IP"],
+	},
+	{
+		id: "us_10days",
+		country: "США",
+		description: "10 дней, 12 ГБ",
+		price: 32,
+		currency: "USD",
+		coverage: ["US", "CA"],
+		icon: "🇺",
+		popular: true,
+		features: [
+			"Безлимитный мессенджеры",
+			"Мгновенная активация",
+			"Поддержка 4G/5G",
+		],
+	},
+	{
+		id: "us_20days",
+		country: "США",
+		description: "20 дней, 25 ГБ",
+		price: 60,
+		currency: "USD",
+		coverage: ["US", "CA"],
+		icon: "🇺",
+		popular: false,
+		features: [
+			"Безлимитный соцсети",
+			"Мгновенная активация",
+			"Поддержка 4G/5G",
+			"Локальный IP",
+		],
 	},
 	{
 		id: "asia_10days",
@@ -46,6 +108,36 @@ const mockESimPlans = [
 		],
 	},
 	{
+		id: "asia_7days",
+		country: "Азия",
+		description: "7 дней, 10 ГБ",
+		price: 22,
+		currency: "USD",
+		coverage: ["TH", "VN", "ID", "MY", "SG", "JP", "KR"],
+		icon: "🌏",
+		popular: false,
+		features: [
+			"Мгновенная активация",
+			"Поддержка 4G",
+		],
+	},
+	{
+		id: "asia_20days",
+		country: "Азия",
+		description: "20 дней, 30 ГБ",
+		price: 55,
+		currency: "USD",
+		coverage: ["TH", "VN", "ID", "MY", "SG", "JP", "KR", "TW", "PH"],
+		icon: "🌏",
+		popular: false,
+		features: [
+			"Безлимитный соцсети",
+			"Мгновенная активация",
+			"Поддержка 4G/5G",
+			"Локальный IP",
+		],
+	},
+	{
 		id: "world_15days",
 		country: "Мир",
 		description: "15 дней, 20 ГБ",
@@ -56,6 +148,22 @@ const mockESimPlans = [
 		popular: false,
 		features: [
 			"Покрытие 200+ стран",
+			"Мгновенная активация",
+			"Поддержка 4G/5G",
+		],
+	},
+	{
+		id: "world_30days",
+		country: "Мир",
+		description: "30 дней, 40 ГБ",
+		price: 85,
+		currency: "USD",
+		coverage: ["Global"],
+		icon: "🌍",
+		popular: true,
+		features: [
+			"Покрытие 210+ стран",
+			"Безлимитный мессенджеры",
 			"Мгновенная активация",
 			"Поддержка 4G/5G",
 		],
@@ -77,7 +185,7 @@ const mockCountries = [
 		name: "США",
 		flag: "🇺",
 		description: "США и Канада",
-		popular: false,
+		popular: true,
 		color: "#e74c3c",
 	},
 	{
@@ -120,6 +228,22 @@ async function sendOrEdit(
 	}
 }
 
+// Helper function to get next plan index (with wrap-around)
+function getNextPlanIndex(currentIndex: number, totalPlans: number): number {
+	if (currentIndex >= totalPlans - 1) {
+		return 0; // Wrap to first plan
+	}
+	return currentIndex + 1;
+}
+
+// Helper function to get previous plan index (with wrap-around)
+function getPrevPlanIndex(currentIndex: number, totalPlans: number): number {
+	if (currentIndex <= 0) {
+		return totalPlans - 1; // Wrap to last plan
+	}
+	return currentIndex - 1;
+}
+
 // Main menu view with enhanced UI
 export const showMainMenu = async (
 	client: TelegramClient,
@@ -140,13 +264,16 @@ export const showMainMenu = async (
 		.addListItem("Просмотреть eSIM-карты по регионам", "🌍")
 		.newLine()
 		.addListItem("Выбрать популярные тарифы", "💳")
-		.newLine()
-		.addListItem("Управление заказами", "📦")
 		.newLine(2)
-		.addWarning(
-			"Подсказка: Выберите регион, чтобы увидеть подходящие eSIM-планы",
-		)
-		.build();
+		.addSeparator()
+		.newLine();
+	// Create buttons for countries with better UI
+	const countryButtons = mockCountries.map((country) => [
+		{
+			text: "Каталог eSIM",
+			callback_data: "show_esim_catalog",
+		},
+	]);
 
 	const keyboard: InlineKeyboardMarkup = {
 		inline_keyboard: [
@@ -157,7 +284,7 @@ export const showMainMenu = async (
 		],
 	};
 
-	return sendOrEdit(client, chatId, msg, keyboard, messageId);
+	return sendOrEdit(client, chatId, msg.build(), keyboard, messageId);
 };
 
 // eSIM catalog view with enhanced UI
@@ -167,7 +294,7 @@ export const showESimCatalog = async (
 	messageId?: number,
 ) => {
 	const text = new MessageBuilder()
-		.addTitle("🌍 Выберите регион", "🗺")
+		.addTitle("Выберите регион", "🌍")
 		.newLine(2)
 		.addInfo("Выберите регион для поездки, чтобы увидеть доступные eSIM-карты:")
 		.newLine(2)
@@ -236,12 +363,12 @@ export const showPopularPlans = async (
 			.newLine()
 			.addPrice(plan.price, plan.currency)
 			.newLine()
-			.addListItem(`📡 Покрытие: ${plan.coverage.join(", ")}`, "🌍")
+			.addListItem(`Покрытие: ${plan.coverage.join(", ")}`, "📡")
 			.newLine();
 
 		// Add special features
 		if (plan.features && plan.features.length > 0) {
-			text.addListItem(`✨ Особенности:`, "🔸").newLine();
+			text.addListItem(`Особенности:`, "✨").newLine();
 			plan.features.forEach((feature) => {
 				text.addListItem(`${feature}`, "•").newLine();
 			});
@@ -260,7 +387,7 @@ export const showPopularPlans = async (
 	const keyboard: InlineKeyboardMarkup = {
 		inline_keyboard: [
 			...planButtons,
-			[{ text: "🌍 Все регионы", callback_data: "show_esim_catalog" }],
+			[{ text: "Все регионы", callback_data: "show_esim_catalog" }],
 			[{ text: "⬅ Назад", callback_data: "back_to_main" }],
 		],
 	};
@@ -268,12 +395,13 @@ export const showPopularPlans = async (
 	return sendOrEdit(client, chatId, text.build(), keyboard, messageId);
 };
 
-// Enhanced country-specific eSIM options view
+// Enhanced country-specific eSIM options view with navigation
 export const showCountryESimOptions = async (
 	client: TelegramClient,
 	chatId: number,
 	countryId: string,
 	messageId?: number,
+	newIndex?: number,
 ) => {
 	const country = mockCountries.find((c) => c.id === countryId);
 	if (!country) {
@@ -284,54 +412,93 @@ export const showCountryESimOptions = async (
 		p.country.toLowerCase().includes(country.name.toLowerCase()),
 	);
 
+	if (plans.length === 0) {
+		return showESimCatalog(client, chatId, messageId);
+	}
+
+	// Get current plan index from conversation state, default to 0
+	const currentState = getConversationState(chatId);
+	let currentPlanIndex = currentState?.planIndex ?? 0;
+	
+	// If a new index is provided via navigation, use that
+	if (newIndex !== undefined) {
+		// Handle navigation based on the new index
+		if (newIndex < 0) {
+			// Go to previous with wrap-around
+			currentPlanIndex = getPrevPlanIndex(currentPlanIndex, plans.length);
+		} else if (newIndex >= plans.length) {
+			// Go to next with wrap-around
+			currentPlanIndex = getNextPlanIndex(currentPlanIndex, plans.length);
+		} else {
+			// Use the provided index
+			currentPlanIndex = newIndex;
+		}
+	}
+	
+	// Ensure the index is within bounds
+	if (currentPlanIndex >= plans.length) {
+		currentPlanIndex = 0;
+	} else if (currentPlanIndex < 0) {
+		currentPlanIndex = plans.length - 1;
+	}
+
+	// Get the current plan to display
+	const currentPlan = plans[currentPlanIndex];
+	
 	const text = new MessageBuilder()
-		.addTitle(`eSIM-карты для ${country.name}`, country.flag)
+		.addTitle(`${country.flag} ${country.name}`, "")
+		.newLine()
+		.addInfo(`План ${currentPlanIndex + 1} из ${plans.length}`)
 		.newLine(2)
-		.addInfo(`Доступно ${plans.length} тарифных планов:`)
-		.newLine(2)
-		.addSeparator()
+		.addSectionTitle(`${currentPlan.icon} ${currentPlan.description}`, "")
+		.newLine()
+		.addPrice(currentPlan.price, currentPlan.currency)
+		.newLine()
+		.addListItem(`Срок действия: ${currentPlan.description.split(",")[0]}`, "⏱")
+		.newLine()
+		.addListItem(`Объем данных: ${currentPlan.description.split(",")[1]}`, "📶")
+		.newLine()
+		.addListItem(`Покрытие: ${currentPlan.coverage.join(", ")}`, "📡")
 		.newLine();
 
-	plans.forEach((plan, index) => {
-		text
-			.addSectionTitle(`${plan.icon} ${plan.description}`, "")
-			.newLine()
-			.addListItem(`Цена: ${plan.price} ${plan.currency}`, "💳")
-			.newLine()
-			.addListItem(`Срок действия: ${plan.description.split(",")[0]}`, "⏱")
-			.newLine()
-			.addListItem(`Объем данных: ${plan.description.split(",")[1]}`, "📶")
-			.newLine()
-			.addListItem(`Покрытие: ${plan.coverage.join(", ")}`, "📡")
-			.newLine();
+	// Add special features
+	if (currentPlan.features && currentPlan.features.length > 0) {
+		text.addListItem(`Особенности:`, "✨").newLine();
+		currentPlan.features.forEach((feature) => {
+			text.addListItem(`${feature}`, "•").newLine();
+		});
+	}
 
-		// Add special features
-		if (plan.features && plan.features.length > 0) {
-			text.addListItem(`Особенности:`, "✨").newLine();
-			plan.features.forEach((feature) => {
-				text.addListItem(`${feature}`, "•").newLine();
-			});
-		}
-
-		text.newLine(2);
-	});
-
-	// Create buttons for each plan with visual improvements
-	const planButtons = plans.map((plan) => [
-		{
-			text: `${plan.icon} ${plan.description} - ${plan.price}`,
-			callback_data: `select_plan_${plan.id}`,
-		},
-	]);
+	text.newLine(2);
 
 	const keyboard: InlineKeyboardMarkup = {
 		inline_keyboard: [
-			...planButtons,
-			[{ text: "⭐ Популярные планы", callback_data: "show_popular_plans" }],
-			[{ text: "🌍 Другой регион", callback_data: "show_esim_catalog" }],
-			[{ text: "⬅ Назад", callback_data: "show_esim_catalog" }],
+			[
+				{ text: "⬅️ Предыдущий", callback_data: `prev_plan_${countryId}_${currentPlanIndex}` },
+				{ text: "➡️ Следующий", callback_data: `next_plan_${countryId}_${currentPlanIndex}` },
+			],
+			[
+				{ text: "➕ Сравнить", callback_data: `add_to_compare_${currentPlan.id}` },
+			],
+			[
+				{ text: `💳 Купить за ${currentPlan.price}`, callback_data: `select_plan_${currentPlan.id}` },
+			],
+			[
+				{ text: "⭐ Популярные планы", callback_data: "show_popular_plans" },
+			],
+			[
+				{ text: "Другой регион", callback_data: "show_esim_catalog" },
+				{ text: "⬅ Назад", callback_data: "show_esim_catalog" },
+			],
 		],
 	};
+
+	// Update conversation state with current plan index
+	setConversationState(chatId, {
+		...currentState,
+		selectedCountry: countryId,
+		planIndex: currentPlanIndex,
+	});
 
 	return sendOrEdit(client, chatId, text.build(), keyboard, messageId);
 };
@@ -355,7 +522,7 @@ export const showPlanDetails = async (
 		.newLine(2)
 		.addSectionTitle("Основные параметры", "📋")
 		.newLine()
-		.addListItem(`⏱ Длительность: ${plan.description.split(",")[0]}`, "📅")
+		.addListItem(`Длительность: ${plan.description.split(",")[0]}`, "⏱")
 		.newLine()
 		.addListItem(`Объем данных: ${plan.description.split(",")[1]}`, "📊")
 		.newLine()
@@ -374,7 +541,7 @@ export const showPlanDetails = async (
 
 	text
 		.newLine(2)
-		.addSectionTitle("Информация", "ℹ️")
+		.addSectionTitle("Информация", "i")
 		.newLine()
 		.addSuccess("Готово к использованию сразу после активации")
 		.newLine()
@@ -395,7 +562,7 @@ export const showPlanDetails = async (
 					callback_data: "purchase_plan",
 				},
 			],
-			[{ text: "✅ Подробнее об eSIM", callback_data: "show_esim_info" }],
+			[{ text: "Подробнее об eSIM", callback_data: "show_esim_info" }],
 			[
 				{
 					text: "⬅ Назад",
@@ -440,7 +607,7 @@ export const showCheckout = async (
 
 	const keyboard: InlineKeyboardMarkup = {
 		inline_keyboard: [
-			[{ text: "✅ Подтвердить и оплатить", callback_data: "purchase_plan" }],
+			[{ text: "Подтвердить и оплатить", callback_data: "purchase_plan" }],
 			[{ text: "i Как использовать eSIM", callback_data: "show_esim_info" }],
 			[{ text: "⬅ Назад", callback_data: "show_esim_catalog" }],
 		],
@@ -504,7 +671,7 @@ export const showPurchaseConfirmation = async (
 				},
 			],
 			[{ text: "📦 Мои заказы", callback_data: "my_orders" }],
-			[{ text: "🌍 Каталог eSIM", callback_data: "show_esim_catalog" }],
+			[{ text: "Каталог eSIM", callback_data: "show_esim_catalog" }],
 			[{ text: "i Поддержка", callback_data: "help" }],
 		],
 	};
@@ -573,7 +740,7 @@ export const showMyOrders = async (
 	const keyboard: InlineKeyboardMarkup = {
 		inline_keyboard: [
 			[{ text: "🔄 Повторить заказ", callback_data: "repeat_order" }],
-			[{ text: "🌍 Каталог eSIM", callback_data: "show_esim_catalog" }],
+			[{ text: "Каталог eSIM", callback_data: "show_esim_catalog" }],
 			[{ text: "i Центр поддержки", callback_data: "help" }],
 			[{ text: "⬅ Назад", callback_data: "back_to_main" }],
 		],
@@ -634,7 +801,7 @@ export const showHelp = async (
 
 	const keyboard: InlineKeyboardMarkup = {
 		inline_keyboard: [
-			[{ text: "🌍 Просмотреть eSIM", callback_data: "show_esim_catalog" }],
+			[{ text: "Просмотреть eSIM", callback_data: "show_esim_catalog" }],
 			[{ text: "⭐ Популярные планы", callback_data: "show_popular_plans" }],
 			[{ text: "i Центр поддержки", callback_data: "help" }],
 			[{ text: "⬅ Назад", callback_data: "back_to_main" }],
@@ -700,5 +867,221 @@ export const showESimInfo = async (
 		],
 	};
 
-	return sendOrEdit(client, chatId, text, keyboard, messageId);
+	return sendOrEdit(client, chatId, text.build(), keyboard, messageId);
+};
+
+// Function to add a plan to comparison
+export const addToComparison = async (
+	client: TelegramClient,
+	chatId: number,
+	planId: string,
+) => {
+	const currentState = getConversationState(chatId);
+	const plan = mockESimPlans.find((p) => p.id === planId);
+	
+	if (!plan) {
+		// If plan not found, return to catalog
+		return showESimCatalog(client, chatId);
+	}
+	
+	// Get current comparison plans or initialize empty array
+	const currentComparisonPlans = currentState?.comparisonPlans || [];
+	
+	// Check if plan is already in comparison list
+	if (!currentComparisonPlans.includes(planId)) {
+		// Add plan to comparison (max 2 plans for now)
+		if (currentComparisonPlans.length < 2) {
+			currentComparisonPlans.push(planId);
+		} else {
+			// Replace the second plan if 2 already exist
+			currentComparisonPlans[1] = planId;
+		}
+	}
+	
+	// Update conversation state
+	setConversationState(chatId, {
+		...currentState,
+		comparisonPlans: currentComparisonPlans,
+	});
+	
+	// Show notification about adding to comparison
+	const text = new MessageBuilder()
+		.addTitle("План добавлен к сравнению", "✅")
+		.newLine()
+		.addInfo(`План "${plan.description}" добавлен к сравнению.`)
+		.newLine(2)
+		.addInfo(`Всего планов в сравнении: ${currentComparisonPlans.length}`)
+		.newLine(2);
+	
+	if (currentComparisonPlans.length === 2) {
+		text.addSuccess("Готово! У вас 2 плана для сравнения.")
+			.newLine(2);
+	} else {
+		text.addInfo("Выберите еще один план для сравнения.")
+			.newLine(2);
+	}
+	
+	const keyboard: InlineKeyboardMarkup = {
+		inline_keyboard: [
+			[
+				{ text: "📋 Сравнить планы", callback_data: "start_comparison" },
+			],
+			[
+				{ text: "🔄 Выбрать другой", callback_data: `select_country_${plan.country.toLowerCase()}` },
+			],
+			[
+				{ text: "❌ Очистить", callback_data: "clear_comparison" },
+				{ text: "⬅ Назад", callback_data: `select_country_${plan.country.toLowerCase()}` },
+			],
+		],
+	};
+	
+	return sendOrEdit(client, chatId, text.build(), keyboard);
+};
+
+// Function to clear the comparison list
+export const clearComparison = async (
+	client: TelegramClient,
+	chatId: number,
+) => {
+	const currentState = getConversationState(chatId);
+	
+	// Update conversation state to clear comparison plans
+	setConversationState(chatId, {
+		...currentState,
+		comparisonPlans: [],
+	});
+	
+	const text = new MessageBuilder()
+		.addTitle("Список сравнения очищен", "🗑")
+		.newLine()
+		.addInfo("Все планы удалены из списка сравнения.")
+		.newLine(2)
+		.addInfo("Теперь вы можете снова выбрать планы для сравнения.");
+	
+	const keyboard: InlineKeyboardMarkup = {
+		inline_keyboard: [
+			[
+				{ text: "🌍 Каталог eSIM", callback_data: "show_esim_catalog" },
+			],
+			[
+				{ text: "⭐ Популярные планы", callback_data: "show_popular_plans" },
+			],
+			[
+				{ text: "⬅ Назад", callback_data: "back_to_main" },
+			],
+		],
+	};
+	
+	return sendOrEdit(client, chatId, text.build(), keyboard);
+};
+
+// Function to show the comparison view
+export const showComparisonView = async (
+	client: TelegramClient,
+	chatId: number,
+) => {
+	const currentState = getConversationState(chatId);
+	const comparisonPlans = currentState?.comparisonPlans || [];
+	
+	if (comparisonPlans.length < 2) {
+		// If not enough plans for comparison, redirect to add more
+		const text = new MessageBuilder()
+			.addTitle("Недостаточно планов для сравнения", "⚠️")
+			.newLine()
+			.addInfo("Для сравнения необходимо выбрать 2 тарифных плана.")
+			.newLine(2)
+			.addInfo(`Сейчас в списке: ${comparisonPlans.length} план(а)`)
+			.newLine(2);
+		
+		const keyboard: InlineKeyboardMarkup = {
+			inline_keyboard: [
+				[
+					{ text: "➕ Добавить план", callback_data: "show_esim_catalog" },
+				],
+				[
+					{ text: "❌ Очистить список", callback_data: "clear_comparison" },
+					{ text: "⬅ Назад", callback_data: "back_to_main" },
+				],
+			],
+		};
+		
+		return sendOrEdit(client, chatId, text.build(), keyboard);
+	}
+	
+	// Get both plans for comparison
+	const firstPlan = mockESimPlans.find((p) => p.id === comparisonPlans[0]);
+	const secondPlan = mockESimPlans.find((p) => p.id === comparisonPlans[1]);
+	
+	if (!firstPlan || !secondPlan) {
+		// If plans not found, redirect to catalog
+		return showESimCatalog(client, chatId);
+	}
+	
+	const text = new MessageBuilder()
+		.addTitle("Сравнение тарифных планов", "📊")
+		.newLine(2)
+		.addSectionTitle(`${firstPlan.icon} ${firstPlan.country}`, "")
+		.newLine()
+		.addPrice(firstPlan.price, firstPlan.currency)
+		.newLine()
+		.addListItem(`Длительность: ${firstPlan.description.split(",")[0]}`, "⏱")
+		.newLine()
+		.addListItem(`Объем данных: ${firstPlan.description.split(",")[1]}`, "📶")
+		.newLine()
+		.addListItem(`Покрытие: ${firstPlan.coverage.join(", ")}`, "📡")
+		.newLine();
+	
+	// Add special features for first plan
+	if (firstPlan.features && firstPlan.features.length > 0) {
+		text.addListItem(`Особенности:`, "✨").newLine();
+		firstPlan.features.forEach((feature) => {
+			text.addListItem(`${feature}`, "•").newLine();
+		});
+	}
+	
+	text.addSeparator()
+		.newLine()
+		.addSectionTitle(`${secondPlan.icon} ${secondPlan.country}`, "")
+		.newLine()
+		.addPrice(secondPlan.price, secondPlan.currency)
+		.newLine()
+		.addListItem(`Длительность: ${secondPlan.description.split(",")[0]}`, "⏱")
+		.newLine()
+		.addListItem(`Объем данных: ${secondPlan.description.split(",")[1]}`, "📶")
+		.newLine()
+		.addListItem(`Покрытие: ${secondPlan.coverage.join(", ")}`, "📡")
+		.newLine();
+	
+	// Add special features for second plan
+	if (secondPlan.features && secondPlan.features.length > 0) {
+		text.addListItem(`Особенности:`, "✨").newLine();
+		secondPlan.features.forEach((feature) => {
+			text.addListItem(`${feature}`, "•").newLine();
+		});
+	}
+	
+	text.newLine(2)
+		.addInfo("Сравните параметры планов и выберите наиболее подходящий для ваших нужд.");
+	
+	const keyboard: InlineKeyboardMarkup = {
+		inline_keyboard: [
+			[
+				{ text: `💳 Заказать ${firstPlan.description}`, callback_data: `select_plan_${firstPlan.id}` },
+			],
+			[
+				{ text: `💳 Заказать ${secondPlan.description}`, callback_data: `select_plan_${secondPlan.id}` },
+			],
+			[
+				{ text: "🔄 Заменить план", callback_data: "show_esim_catalog" },
+				{ text: "❌ Очистить", callback_data: "clear_comparison" },
+			],
+			[
+				{ text: "⬅ Назад", callback_data: "back_to_main" },
+			],
+		],
+	};
+	
+	return sendOrEdit(client, chatId, text.build(), keyboard);
+};
 };

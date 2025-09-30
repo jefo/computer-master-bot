@@ -78,6 +78,34 @@ export const runBot = async () => {
 					} else if (callbackData === "back_to_main") {
 						clearConversationState(chatId);
 						await Views.showMainMenu(client, chatId);
+					} else if (callbackData.startsWith("prev_plan_")) {
+						// Extract country and current index from callback data
+						const parts = callbackData.split("_");
+						if (parts.length >= 4) { // prev_plan_country_index
+							const country = parts[2];
+							const currentIndex = parseInt(parts[3]);
+							// We'll handle the navigation in the view
+							await Views.showCountryESimOptions(client, chatId, country, messageId, currentIndex - 1);
+						}
+					} else if (callbackData.startsWith("next_plan_")) {
+						// Extract country and current index from callback data
+						const parts = callbackData.split("_");
+						if (parts.length >= 4) { // next_plan_country_index
+							const country = parts[2];
+							const currentIndex = parseInt(parts[3]);
+							// We'll handle the navigation in the view
+							await Views.showCountryESimOptions(client, chatId, country, messageId, currentIndex + 1);
+						}
+					} else if (callbackData.startsWith("add_to_compare_")) {
+						const planId = callbackData.replace("add_to_compare_", "");
+						// This will be handled by a new function to add to comparison list
+						await Views.addToComparison(client, chatId, planId);
+					} else if (callbackData === "start_comparison") {
+						// Show the comparison view
+						await Views.showComparisonView(client, chatId);
+					} else if (callbackData === "clear_comparison") {
+						// Clear the comparison list
+						await Views.clearComparison(client, chatId);
 					}
 
 					client.answerCallbackQuery({

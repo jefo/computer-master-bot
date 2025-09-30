@@ -7,6 +7,8 @@ interface ConversationState {
   orderId?: string;
   userId?: number;
   timestamp?: number;
+  planIndex?: number; // Index for plan navigation within a country
+  comparisonPlans?: string[]; // Plans selected for comparison
 }
 
 const conversationStates = new Map<number, ConversationState>();

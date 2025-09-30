@@ -20,7 +20,7 @@ export class MessageBuilder {
 
 	addSectionTitle(title: string, icon: string = ""): MessageBuilder {
 		this.parts.push(
-			`\n*${icon ? icon + " " : ""}${MessageBuilder.escapeMarkdownV2(title)}*`,
+			`*${icon ? icon + " " : ""}${MessageBuilder.escapeMarkdownV2(title)}*`,
 		);
 		return this;
 	}
@@ -46,7 +46,7 @@ export class MessageBuilder {
 	}
 
 	addNumberedItem(item: string, number: number): MessageBuilder {
-		this.parts.push(`${number}. ${MessageBuilder.escapeMarkdownV2(item)}`);
+		this.parts.push(`${number}\\. ${MessageBuilder.escapeMarkdownV2(item)}`);
 		return this;
 	}
 
@@ -66,7 +66,7 @@ export class MessageBuilder {
 	}
 
 	addSeparator(): MessageBuilder {
-		this.parts.push("\n─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─\n");
+		this.parts.push("\n");
 		return this;
 	}
 

@@ -1,14 +1,13 @@
-import { TelegramClient } from "../../../../packages/telegram-client";
 import {
 	getConversationState,
 	setConversationState,
 	clearConversationState,
 	initializeConversationState,
 } from "./conversation-state";
-import * as Views from "./views/telegram-views";
+import * as Views from "../views/telegram-views";
 import { MessageBuilder } from "./message-builder";
 import { showPricesUseCase } from "../app/show-prices.use-case";
-import type { InlineKeyboardMarkup } from "../../../../packages/telegram-client/telegram-types";
+import { TelegramClient } from "@tg/telegram-client";
 
 const BOT_TOKEN = process.env.BOT_TOKEN || "YOUR_BOT_TOKEN_HERE";
 const MASTER_CHAT_ID = process.env.MASTER_CHAT_ID;
@@ -61,30 +60,18 @@ export const runBot = async () => {
 						`${update.message.from.first_name} ${update.message.from.last_name || ""}`.trim();
 
 					const summary = new MessageBuilder()
-						.addTitle("✅ Заявка принята!")
-						.newLine(2)
-						.addText(
-							"Спасибо! Мы получили вашу заявку и скоро свяжемся с вами для подтверждения.",
-						)
-						.newLine(2)
-						.addRawText("*Детали вашей заявки:*")
-						.newLine()
-						.addListItem(
-							`*Услуги:* ${MessageBuilder.escapeMarkdownV2((currentState.selectedItems || []).map((i) => i.name).join(", "))}`,
-						)
-						.newLine()
-						.addListItem(
-							`*Дата:* ${MessageBuilder.escapeMarkdownV2(currentState.selectedDate)}`,
-						)
-						.newLine()
-						.addListItem(
-							`*Время:* ${MessageBuilder.escapeMarkdownV2(currentState.selectedTime)}`,
-						)
-						.newLine()
-						.addListItem(`*Имя:* ${MessageBuilder.escapeMarkdownV2(name)}`)
-						.newLine()
-						.addListItem(`*Телефон:* ${MessageBuilder.escapeMarkdownV2(phone)}`)
-						.build();
+							.addSuccess("Заявка принята!")
+							.newLine(2)
+							.addText(
+								"Спасибо! Мы получили вашу заявку и скоро свяжемся с вами для подтверждения.",
+							)
+							.newLine(2)
+							.addSectionTitle("Детали заявки")
+							.newLine()
+							.addServicesList((currentState.selectedItems || []).map(item => item.name))
+							.addBookingDateTime(currentState.selectedDate || "", currentState.selectedTime || "")
+							.addContactInfo(name, phone)
+							.build();
 
 					await client.sendMessage({
 						chat_id: chatId,
@@ -168,20 +155,25 @@ export const runBot = async () => {
 								}
 							}
 						} else if (callbackData === "selection_next") {
-							if (
-								currentState.step === "SELECT_ITEMS" &&
-								currentState.selectedItems &&
-								currentState.selectedItems.length > 0
-							) {
-								await Views.showReviewScreen(client, chatId, messageId);
+						if (
+							currentState.step === "SELECT_ITEMS" &&
+							currentState.selectedItems &&
+							currentState.selectedItems.length > 0
+						) {
+							// For emergency flow, skip the confirmation step and go directly to date selection
+							if (currentState.flowType === "emergency") {
+								await Views.showDateSelectionScreen(client, chatId, messageId);
 							} else {
-								await client.answerCallbackQuery({
-									callback_query_id: update.callback_query.id,
-									text: "Пожалуйста, выберите хотя бы один пункт.",
-									show_alert: true,
-								});
+								await Views.showReviewScreen(client, chatId, messageId);
 							}
-						} else if (callbackData === "selection_edit") {
+						} else {
+							await client.answerCallbackQuery({
+								callback_query_id: update.callback_query.id,
+								text: "Пожалуйста, выберите хотя бы один пункт.",
+								show_alert: true,
+							});
+						}
+					} else if (callbackData === "selection_edit") {
 							if (
 								currentState.step === "REVIEW_SELECTION" &&
 								currentState.flowType
@@ -199,18 +191,19 @@ export const runBot = async () => {
 							}
 						} else if (callbackData === "book_now") {
 							if (currentState.step === "ASK_DATE" && MASTER_CHAT_ID) {
-								const userText = `От: ${MessageBuilder.escapeMarkdownV2(from.first_name)}${from.last_name ? ` ${MessageBuilder.escapeMarkdownV2(from.last_name)}` : ""} (@${from.username}, ID: ${from.id})`;
-
 								const masterMessage = new MessageBuilder()
-									.addRawText("🚨 *НОВАЯ ЭКСТРЕННАЯ ЗАЯВКА (СЕЙЧАС)* 🚨")
+									.addWarning("НОВАЯ ЭКСТРЕННАЯ ЗАЯВКА (СЕЙЧАС)")
 									.newLine(2)
-									.addRawText(userText)
+									.addDetail(
+										"От", 
+										`${MessageBuilder.escapeMarkdownV2(from.first_name)}${from.last_name ? ` ${MessageBuilder.escapeMarkdownV2(from.last_name)}` : ""} (@${from.username}, ID: ${from.id})`
+									)
 									.newLine(2)
-									.addRawText("*Проблемы:*")
+									.addSectionTitle("Проблемы", "🛠")
 									.newLine();
 
 								(currentState.selectedItems || []).forEach((p) => {
-									masterMessage.addListItem(p.name).newLine();
+									masterMessage.addListItem(p.name);
 								});
 
 								const masterKeyboard: InlineKeyboardMarkup = {
