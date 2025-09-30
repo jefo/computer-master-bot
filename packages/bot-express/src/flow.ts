@@ -74,22 +74,35 @@ export class FlowController {
 
   /** @internal */
   private async executeAction(action: ActionHandler, ctx: AppContext) {
-    const payload = { params: ctx.params, session: ctx.session, text: ctx.update.message?.text };
-    const result = await action.command(payload, ctx);
+    const { command } = action;
 
-    let nextStateName: string | undefined;
-    if (action.refresh) {
-      nextStateName = ctx.session.flowState;
-    } else if (action.nextState) {
-      nextStateName = typeof action.nextState === 'function' ? action.nextState(result) : action.nextState;
-    }
+    // The payload for the command is a combination of route params and the message text.
+    const rawInput = { ...ctx.params, text: ctx.update.message?.text };
 
-    if (nextStateName) {
-      ctx.session.flowState = nextStateName;
-      await this.renderState(nextStateName, ctx);
-    } else {
-      // If there's no next state, the flow is considered finished.
-      this.exitFlow(ctx);
+    try {
+      const input = command.input.parse(rawInput);
+      const result = await command.execute(input, ctx);
+
+      // Optionally, validate output to ensure business logic adheres to its contract.
+      command.output.parse(result);
+
+      let nextStateName: string | undefined;
+      if (action.refresh) {
+        nextStateName = ctx.session.flowState;
+      } else if (action.nextState) {
+        nextStateName = typeof action.nextState === 'function' ? action.nextState(result) : action.nextState;
+      }
+
+      if (nextStateName) {
+        ctx.session.flowState = nextStateName;
+        await this.renderState(nextStateName, ctx);
+      } else {
+        this.exitFlow(ctx);
+      }
+    } catch (error) {
+      console.error("Zod validation or command execution error:", error);
+      // TODO: Add user-facing error message logic
+      await ctx.reply("Произошла ошибка. Попробуйте еще раз.");
     }
   }
 
@@ -102,19 +115,30 @@ export class FlowController {
       return;
     }
 
-    // 1. Get data for the component by running the onEnter query.
-    const props = state.onEnter ? await state.onEnter(ctx) : {};
+    try {
+      // 1. Get data for the component by running the onEnter query.
+      let props = {};
+      if (state.onEnter) {
+        // For queries, the input is usually void or comes from session, not user input.
+        const input = state.onEnter.input.parse(undefined);
+        props = await state.onEnter.execute(input, ctx);
+        state.onEnter.output.parse(props);
+      }
 
-    // 2. Render the component to get the message payload.
-    const messagePayload = await state.component(props);
+      // 2. Render the component to get the message payload.
+      const messagePayload = await state.component(props);
 
-    // 3. Send or edit the message.
-    const isUpdateFromCallback = !!ctx.update.callback_query;
-    if (isUpdateFromCallback) {
-      await ctx.answerCallbackQuery(); // Acknowledge the button press
-      await ctx.editMessageText(messagePayload.text, { reply_markup: messagePayload.reply_markup });
-    } else {
-      await ctx.reply(messagePayload.text, { reply_markup: messagePayload.reply_markup });
+      // 3. Send or edit the message.
+      const isUpdateFromCallback = !!ctx.update.callback_query;
+      if (isUpdateFromCallback) {
+        await ctx.answerCallbackQuery();
+        await ctx.editMessageText(messagePayload.text, { reply_markup: messagePayload.reply_markup });
+      } else {
+        await ctx.reply(messagePayload.text, { reply_markup: messagePayload.reply_markup });
+      }
+    } catch (error) {
+      console.error("Zod validation or query execution error in renderState:", error);
+      await ctx.reply("Произошла ошибка при отображении экрана.");
     }
   }
 

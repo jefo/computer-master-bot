@@ -109,27 +109,42 @@ export interface MessagePayload {
  */
 export type Component = (props: any) => Promise<MessagePayload>;
 
-/**
- * A function that executes a business logic query to fetch data (DTO).
- * It receives the context for access to session, user info, etc.
- * @param ctx The application context.
- */
-export type QueryFunction<TResult = any> = (ctx: AppContext) => Promise<TResult>;
+import { z, type ZodType } from 'zod';
+
+// ... (imports)
+
+// ... (AppContext, Handler, Middleware, MessagePayload, Component)
+
+//================================================================================
+// Business Logic Core
+//================================================================================
 
 /**
- * A function that executes a business logic command to change data.
- * It receives a payload from the user interaction and the application context.
- * @param payload The data from the user interaction (e.g., text input, callback query params).
- * @param ctx The application context.
+ * Represents a business logic query with defined input and output schemas.
  */
-export type CommandFunction<TPayload = any, TResult = any> = (payload: TPayload, ctx: AppContext) => Promise<TResult>;
+export interface BotQuery<TInput extends ZodType, TOutput extends ZodType> {
+  _id: 'BotQuery';
+  input: TInput;
+  output: TOutput;
+  execute: (input: z.infer<TInput>, ctx: AppContext) => Promise<z.infer<TOutput>>;
+}
+
+/**
+ * Represents a business logic command with defined input and output schemas.
+ */
+export interface BotCommand<TInput extends ZodType, TOutput extends ZodType> {
+  _id: 'BotCommand';
+  input: TInput;
+  output: TOutput;
+  execute: (input: z.infer<TInput>, ctx: AppContext) => Promise<z.infer<TOutput>>;
+}
 
 /**
  * Defines an action to be taken in response to a user interaction within a flow state.
  */
 export interface ActionHandler {
   /** The business logic command to execute. */
-  command: CommandFunction;
+  command: BotCommand<any, any>;
   /** The next state to transition to. Can be a static string or a function of the command's result. */
   nextState?: string | ((result: any) => string);
   /** If true, re-renders the current state with the result of the command, instead of transitioning. */
@@ -143,7 +158,7 @@ export interface FlowState {
   /** The UI component to render for this state. */
   component: Component;
   /** An optional query to execute to fetch data when entering this state. The result is passed to the component as props. */
-  onEnter?: QueryFunction;
+  onEnter?: BotQuery<any, any>;
   /** A map of handlers for callback query actions. The key is a string (e.g., 'action::id') or a RegExp. */
   onAction?: Record<string, ActionHandler>;
   /** A map of handlers for text messages. The key is a string (e.g., ':name') or a RegExp. */
