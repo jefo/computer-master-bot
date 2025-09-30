@@ -1,15 +1,32 @@
 
 import type { AppContext, FlowConfig, ActionHandler } from './types';
+import { pathStringToRegex } from './utils';
 
+/**
+ * Manages the logic for a stateful, multi-step dialogue (a "flow").
+ * It acts as a state machine, transitioning between states based on user actions.
+ */
 export class FlowController {
+  /** The unique name of this flow. */
   public readonly name: string;
   private readonly config: FlowConfig;
 
+  /**
+   * Creates a new FlowController.
+   * @param config The configuration object defining the states and transitions.
+   * @param name The unique name for this flow.
+   */
   constructor(config: FlowConfig, name: string) {
     this.config = config;
     this.name = name;
   }
 
+  /**
+   * Handles an update if the user is currently in this flow.
+   * @param ctx The application context.
+   * @returns `true` if the update was handled by the flow, `false` otherwise.
+   * @internal
+   */
   public async handle(ctx: AppContext): Promise<boolean> {
     if (ctx.session.flowName !== this.name) {
       return false;
@@ -24,30 +41,40 @@ export class FlowController {
       return false;
     }
 
-    // Is this an action triggered by a button?
-    const callbackData = ctx.update.callback_query?.data;
-    if (callbackData && currentState.onAction) {
-      for (const pattern in currentState.onAction) {
-        const match = callbackData.match(new RegExp(pattern));
+    const processPatterns = async (text: string, handlers: Record<string, ActionHandler>): Promise<boolean> => {
+      for (const pattern in handlers) {
+        const regex = pattern.includes(':') ? pathStringToRegex(pattern) : new RegExp(pattern);
+        const match = text.match(regex);
         if (match) {
-          const action = currentState.onAction[pattern];
-          ctx.params = match.groups ?? {}; // Save regex groups for the command
+          const action = handlers[pattern];
+          ctx.params = match.groups ?? {};
           await this.executeAction(action, ctx);
-          return true; // Action handled
+          return true;
         }
       }
+      return false;
+    };
+
+    // Check for a callback query action
+    const callbackData = ctx.update.callback_query?.data;
+    if (callbackData && currentState.onAction) {
+      if (await processPatterns(callbackData, currentState.onAction)) return true;
     }
 
-    // If no action was triggered, just render the current state.
-    // This happens on initial entry or on a text message.
+    // Check for a text message action
+    const text = ctx.update.message?.text;
+    if (text && currentState.onText) {
+      if (await processPatterns(text, currentState.onText)) return true;
+    }
+
+    // If no action was triggered, just re-render the current state.
     await this.renderState(currentStateName, ctx);
     return true;
   }
 
+  /** @internal */
   private async executeAction(action: ActionHandler, ctx: AppContext) {
-    // The payload for the command can be built from ctx, params, etc.
-    // For now, we pass a simple payload.
-    const payload = { params: ctx.params, session: ctx.session };
+    const payload = { params: ctx.params, session: ctx.session, text: ctx.update.message?.text };
     const result = await action.command(payload, ctx);
 
     let nextStateName: string | undefined;
@@ -61,27 +88,27 @@ export class FlowController {
       ctx.session.flowState = nextStateName;
       await this.renderState(nextStateName, ctx);
     } else {
-      // If no next state, the flow might be over
+      // If there's no next state, the flow is considered finished.
       this.exitFlow(ctx);
     }
   }
 
+  /** @internal */
   private async renderState(stateName: string, ctx: AppContext) {
     const state = this.config[stateName];
     if (!state) {
-      console.error(`Cannot render non-existent state '${stateName}'`);
+      console.error(`Cannot render non-existent state '${stateName}' in flow '${this.name}'`);
       this.exitFlow(ctx);
       return;
     }
 
-    // 1. Get data for the component
+    // 1. Get data for the component by running the onEnter query.
     const props = state.onEnter ? await state.onEnter(ctx) : {};
 
-    // 2. Render the component
+    // 2. Render the component to get the message payload.
     const messagePayload = await state.component(props);
 
-    // 3. Send to user
-    // If we are in a flow (i.e., from a button), we should edit the existing message.
+    // 3. Send or edit the message.
     const isUpdateFromCallback = !!ctx.update.callback_query;
     if (isUpdateFromCallback) {
       await ctx.answerCallbackQuery(); // Acknowledge the button press
@@ -91,6 +118,7 @@ export class FlowController {
     }
   }
 
+  /** @internal */
   private exitFlow(ctx: AppContext) {
     delete ctx.session.flowName;
     delete ctx.session.flowState;
@@ -98,7 +126,9 @@ export class FlowController {
 }
 
 /**
- * Factory function to create a flow configuration.
+ * A factory function for creating a `FlowConfig` object with type inference.
+ * @param config The flow configuration object.
+ * @returns The same configuration object.
  */
 export function createFlow(config: FlowConfig): FlowConfig {
   return config;

@@ -1,8 +1,20 @@
 {
-  "name": "bot-express",
+  "name": "@kaizinx/bot-express",
+  "version": "0.1.0",
+  "description": "A lightweight and modern framework for building Telegram bots, inspired by Express.js and React.",
+  "author": "eugenekaizin",
+  "license": "MIT",
+  "keywords": [
+    "telegram",
+    "bot",
+    "framework",
+    "express",
+    "react",
+    "state-machine",
+    "flow"
+  ],
   "module": "index.ts",
   "type": "module",
-  "private": true,
   "devDependencies": {
     "@types/bun": "latest"
   },
