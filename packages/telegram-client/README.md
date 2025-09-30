@@ -1,4 +1,4 @@
-# @computer-master/telegram-client
+# @bot-machine/telegram-client
 
 A lightweight, type-safe Telegram Bot API client for Bun, written in TypeScript.
 
@@ -15,19 +15,19 @@ A lightweight, type-safe Telegram Bot API client for Bun, written in TypeScript.
 
 ```bash
 # Using bun
-bun add @computer-master/telegram-client
+bun add @bot-machine/telegram-client
 
 # Using npm
-npm install @computer-master/telegram-client
+npm install @bot-machine/telegram-client
 
 # Using yarn
-yarn add @computer-master/telegram-client
+yarn add @bot-machine/telegram-client
 ```
 
 ## Quick Start
 
 ```typescript
-import { TelegramClient } from '@computer-master/telegram-client';
+import { TelegramClient } from '@bot-machine/telegram-client';
 
 // Initialize the client with your bot token
 const client = new TelegramClient('YOUR_BOT_TOKEN');
@@ -94,7 +94,7 @@ const updates = await client.getUpdates({
 All API errors are thrown as `TelegramError` instances:
 
 ```typescript
-import { TelegramClient, TelegramError } from '@computer-master/telegram-client';
+import { TelegramClient, TelegramError } from '@bot-machine/telegram-client';
 
 const client = new TelegramClient('YOUR_BOT_TOKEN');
 

@@ -1,4 +1,4 @@
-# bot-express
+# bot-machine
 
 To install dependencies:
 

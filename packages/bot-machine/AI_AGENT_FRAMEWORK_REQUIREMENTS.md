@@ -16,7 +16,7 @@ We identify two paramount requirements for an "AI-native" framework:
 1.  **Schema-First Data Contracts:** All boundaries between system components (e.g., UI and business logic) must be defined by machine-readable schemas (e.g., using Zod), eliminating the ambiguity of `any` types.
 2.  **Type-Safe State Transitions:** State machines and routers must eliminate "magic strings" in favor of type-safe, discoverable APIs for defining states and transitions.
 
-This report details the core needs of an AI agent and translates them into these actionable architectural requirements, using the in-development `bot-express` framework as a case study.
+This report details the core needs of an AI agent and translates them into these actionable architectural requirements, using the in-development `bot-machine` framework as a case study.
 
 ---
 
@@ -56,9 +56,9 @@ When a human is asked to "add a button to the user profile screen," they use the
 
 *   **Implication:** Enforce a clean, layered architecture where the responsibilities of each module are obvious.
 
-## 3. From Needs to Requirements: A Case Study with `bot-express`
+## 3. From Needs to Requirements: A Case Study with `bot-machine`
 
-Analyzing our `bot-express` framework through the lens of these needs reveals critical areas for improvement. What is merely an inconvenience for a human is a significant roadblock for an AI.
+Analyzing our `bot-machine` framework through the lens of these needs reveals critical areas for improvement. What is merely an inconvenience for a human is a significant roadblock for an AI.
 
 ### Requirement 1: Type-Safe State Transitions
 
@@ -122,4 +122,4 @@ By designing for the most demanding, logic-driven, and context-unaware developer
 
 ## 5. Recommendations
 
-For the `bot-express` project, we recommend prioritizing the implementation of these findings to validate their impact. The next immediate step is to **integrate Zod for schema-defined business logic commands**, as this provides the most significant and immediate improvement to the framework's robustness and DX for all stakeholders, both human and artificial.
+For the `bot-machine` project, we recommend prioritizing the implementation of these findings to validate their impact. The next immediate step is to **integrate Zod for schema-defined business logic commands**, as this provides the most significant and immediate improvement to the framework's robustness and DX for all stakeholders, both human and artificial.

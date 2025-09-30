@@ -1,5 +1,5 @@
 
-# AI-Driven Workflow: Development Methodology for `bot-express`
+# AI-Driven Workflow: Development Methodology for `bot-machine`
 
 ## Core Principle
 
@@ -68,7 +68,7 @@ With the data contracts established, we can now describe the UI.
 
     *AI Agent Action: Create `src/flows/pizza/SelectSize.component.ts`*
     ```typescript
-    import { message, Keyboard } from '@bot-express/ui'; // (hypothetical path)
+    import { message, Keyboard } from '@bot-machine/ui'; // (hypothetical path)
     import { z } from 'zod';
     import { getOrderQuery } from '../../core/pizza';
 

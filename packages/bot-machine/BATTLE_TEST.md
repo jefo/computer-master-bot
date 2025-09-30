@@ -24,7 +24,7 @@
 
 | Requirement | Description | Rating | Comments |
 | :--- | :--- | :--- | :--- |
-| **Rich Content (Media)** | Easy sending of images, videos, files. | 🟡 | The underlying `telegram-client` supports this, but `bot-express` provides no high-level abstractions. Requires calling `ctx.client.sendPhoto(...)` directly. |
+| **Rich Content (Media)** | Easy sending of images, videos, files. | 🟡 | The underlying `telegram-client` supports this, but `bot-machine` provides no high-level abstractions. Requires calling `ctx.client.sendPhoto(...)` directly. |
 | **Dynamic Content** | The ability to use variables (e.g., user's name, data from an API) in messages. | ✅ | Components accept `props`, which can be populated with any dynamic data. |
 | **Message Formatting** | Easy support for Markdown/HTML. | ✅ | The `MessagePayload` has a `parse_mode` field. |
 | **Message Delays** | The ability to simulate typing and add artificial delays between messages. | ❌ | Missing. Can be implemented manually via `setTimeout`, but it's not an out-of-the-box feature. |

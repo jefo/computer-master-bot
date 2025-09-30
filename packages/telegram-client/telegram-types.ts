@@ -102,7 +102,7 @@ export interface Message {
   forum_topic_reopened?: ForumTopicReopened;
   general_forum_topic_hidden?: GeneralForumTopicHidden;
   general_forum_topic_unhidden?: GeneralForumTopicUnhidden;
-  giveaway_created?: GiveawayCreated;
+  giveaway_created?: Giveaway;
   giveaway?: Giveaway;
   giveaway_winners?: GiveawayWinners;
   giveaway_completed?: GiveawayCompleted;
@@ -1369,7 +1369,7 @@ export interface EditMessageLiveLocationParams {
   reply_markup?: InlineKeyboardMarkup;
 }
 
-export interface EditMessageLiveLocationResponse extends Message | boolean {}
+export type EditMessageLiveLocationResponse = Message | boolean;
 
 export interface StopMessageLiveLocationParams {
   chat_id?: number | string;
@@ -1378,7 +1378,7 @@ export interface StopMessageLiveLocationParams {
   reply_markup?: InlineKeyboardMarkup;
 }
 
-export interface StopMessageLiveLocationResponse extends Message | boolean {}
+export type StopMessageLiveLocationResponse = Message | boolean;
 
 export interface SendVenueParams {
   chat_id: number | string;
@@ -1459,7 +1459,7 @@ export interface SendChatActionParams {
   action: 'typing' | 'upload_photo' | 'record_video' | 'upload_video' | 'record_voice' | 'upload_voice' | 'upload_document' | 'find_location' | 'record_video_note' | 'upload_video_note';
 }
 
-export interface SendChatActionResponse extends boolean {}
+export type SendChatActionResponse = boolean;
 
 export interface GetUserProfilePhotosParams {
   user_id: number;
@@ -1482,7 +1482,7 @@ export interface BanChatMemberParams {
   revoke_messages?: boolean;
 }
 
-export interface BanChatMemberResponse extends boolean {}
+export type BanChatMemberResponse = boolean;
 
 export interface UnbanChatMemberParams {
   chat_id: number | string;
@@ -1490,7 +1490,7 @@ export interface UnbanChatMemberParams {
   only_if_banned?: boolean;
 }
 
-export interface UnbanChatMemberResponse extends boolean {}
+export type UnbanChatMemberResponse = boolean;
 
 export interface RestrictChatMemberParams {
   chat_id: number | string;
@@ -1500,7 +1500,7 @@ export interface RestrictChatMemberParams {
   until_date?: number;
 }
 
-export interface RestrictChatMemberResponse extends boolean {}
+export type RestrictChatMemberResponse = boolean;
 
 export interface PromoteChatMemberParams {
   chat_id: number | string;
@@ -1522,7 +1522,7 @@ export interface PromoteChatMemberParams {
   can_manage_topics?: boolean;
 }
 
-export interface PromoteChatMemberResponse extends boolean {}
+export type PromoteChatMemberResponse = boolean;
 
 export interface SetChatAdministratorCustomTitleParams {
   chat_id: number | string;
@@ -1530,21 +1530,21 @@ export interface SetChatAdministratorCustomTitleParams {
   custom_title: string;
 }
 
-export interface SetChatAdministratorCustomTitleResponse extends boolean {}
+export type SetChatAdministratorCustomTitleResponse = boolean;
 
 export interface BanChatSenderChatParams {
   chat_id: number | string;
   sender_chat_id: number;
 }
 
-export interface BanChatSenderChatResponse extends boolean {}
+export type BanChatSenderChatResponse = boolean;
 
 export interface UnbanChatSenderChatParams {
   chat_id: number | string;
   sender_chat_id: number;
 }
 
-export interface UnbanChatSenderChatResponse extends boolean {}
+export type UnbanChatSenderChatResponse = boolean;
 
 export interface SetChatPermissionsParams {
   chat_id: number | string;
@@ -1552,13 +1552,13 @@ export interface SetChatPermissionsParams {
   use_independent_chat_permissions?: boolean;
 }
 
-export interface SetChatPermissionsResponse extends boolean {}
+export type SetChatPermissionsResponse = boolean;
 
 export interface ExportChatInviteLinkParams {
   chat_id: number | string;
 }
 
-export interface ExportChatInviteLinkResponse extends string {}
+export type ExportChatInviteLinkResponse = string;
 
 export interface CreateChatInviteLinkParams {
   chat_id: number | string;
@@ -1593,41 +1593,41 @@ export interface ApproveChatJoinRequestParams {
   user_id: number;
 }
 
-export interface ApproveChatJoinRequestResponse extends boolean {}
+export type ApproveChatJoinRequestResponse = boolean;
 
 export interface DeclineChatJoinRequestParams {
   chat_id: number | string;
   user_id: number;
 }
 
-export interface DeclineChatJoinRequestResponse extends boolean {}
+export type DeclineChatJoinRequestResponse = boolean;
 
 export interface SetChatPhotoParams {
   chat_id: number | string;
   photo: string;
 }
 
-export interface SetChatPhotoResponse extends boolean {}
+export type SetChatPhotoResponse = boolean;
 
 export interface DeleteChatPhotoParams {
   chat_id: number | string;
 }
 
-export interface DeleteChatPhotoResponse extends boolean {}
+export type DeleteChatPhotoResponse = boolean;
 
 export interface SetChatTitleParams {
   chat_id: number | string;
   title: string;
 }
 
-export interface SetChatTitleResponse extends boolean {}
+export type SetChatTitleResponse = boolean;
 
 export interface SetChatDescriptionParams {
   chat_id: number | string;
   description?: string;
 }
 
-export interface SetChatDescriptionResponse extends boolean {}
+export type SetChatDescriptionResponse = boolean;
 
 export interface PinChatMessageParams {
   chat_id: number | string;
@@ -1635,26 +1635,26 @@ export interface PinChatMessageParams {
   disable_notification?: boolean;
 }
 
-export interface PinChatMessageResponse extends boolean {}
+export type PinChatMessageResponse = boolean;
 
 export interface UnpinChatMessageParams {
   chat_id: number | string;
   message_id?: number;
 }
 
-export interface UnpinChatMessageResponse extends boolean {}
+export type UnpinChatMessageResponse = boolean;
 
 export interface UnpinAllChatMessagesParams {
   chat_id: number | string;
 }
 
-export interface UnpinAllChatMessagesResponse extends boolean {}
+export type UnpinAllChatMessagesResponse = boolean;
 
 export interface LeaveChatParams {
   chat_id: number | string;
 }
 
-export interface LeaveChatResponse extends boolean {}
+export type LeaveChatResponse = boolean;
 
 export interface GetChatParams {
   chat_id: number | string;
@@ -1672,7 +1672,7 @@ export interface GetChatMemberCountParams {
   chat_id: number | string;
 }
 
-export interface GetChatMemberCountResponse extends number {}
+export type GetChatMemberCountResponse = number;
 
 export interface GetChatMemberParams {
   chat_id: number | string;
@@ -1686,13 +1686,13 @@ export interface SetChatStickerSetParams {
   sticker_set_name: string;
 }
 
-export interface SetChatStickerSetResponse extends boolean {}
+export type SetChatStickerSetResponse = boolean;
 
 export interface DeleteChatStickerSetParams {
   chat_id: number | string;
 }
 
-export interface DeleteChatStickerSetResponse extends boolean {}
+export type DeleteChatStickerSetResponse = boolean;
 
 export interface GetForumTopicIconStickersResponse extends Array<Sticker> {}
 
@@ -1712,66 +1712,66 @@ export interface EditForumTopicParams {
   icon_custom_emoji_id?: string;
 }
 
-export interface EditForumTopicResponse extends boolean {}
+export type EditForumTopicResponse = boolean;
 
 export interface CloseForumTopicParams {
   chat_id: number | string;
   message_thread_id: number;
 }
 
-export interface CloseForumTopicResponse extends boolean {}
+export type CloseForumTopicResponse = boolean;
 
 export interface ReopenForumTopicParams {
   chat_id: number | string;
   message_thread_id: number;
 }
 
-export interface ReopenForumTopicResponse extends boolean {}
+export type ReopenForumTopicResponse = boolean;
 
 export interface DeleteForumTopicParams {
   chat_id: number | string;
   message_thread_id: number;
 }
 
-export interface DeleteForumTopicResponse extends boolean {}
+export type DeleteForumTopicResponse = boolean;
 
 export interface UnpinAllForumTopicMessagesParams {
   chat_id: number | string;
   message_thread_id: number;
 }
 
-export interface UnpinAllForumTopicMessagesResponse extends boolean {}
+export type UnpinAllForumTopicMessagesResponse = boolean;
 
 export interface EditGeneralForumTopicParams {
   chat_id: number | string;
   name: string;
 }
 
-export interface EditGeneralForumTopicResponse extends boolean {}
+export type EditGeneralForumTopicResponse = boolean;
 
 export interface CloseGeneralForumTopicParams {
   chat_id: number | string;
 }
 
-export interface CloseGeneralForumTopicResponse extends boolean {}
+export type CloseGeneralForumTopicResponse = boolean;
 
 export interface ReopenGeneralForumTopicParams {
   chat_id: number | string;
 }
 
-export interface ReopenGeneralForumTopicResponse extends boolean {}
+export type ReopenGeneralForumTopicResponse = boolean;
 
 export interface HideGeneralForumTopicParams {
   chat_id: number | string;
 }
 
-export interface HideGeneralForumTopicResponse extends boolean {}
+export type HideGeneralForumTopicResponse = boolean;
 
 export interface UnhideGeneralForumTopicParams {
   chat_id: number | string;
 }
 
-export interface UnhideGeneralForumTopicResponse extends boolean {}
+export type UnhideGeneralForumTopicResponse = boolean;
 
 export interface AnswerCallbackQueryParams {
   callback_query_id: string;
@@ -1781,7 +1781,7 @@ export interface AnswerCallbackQueryParams {
   cache_time?: number;
 }
 
-export interface AnswerCallbackQueryResponse extends boolean {}
+export type AnswerCallbackQueryResponse = boolean;
 
 export interface SetMyCommandsParams {
   commands: BotCommand[];
@@ -1789,14 +1789,14 @@ export interface SetMyCommandsParams {
   language_code?: string;
 }
 
-export interface SetMyCommandsResponse extends boolean {}
+export type SetMyCommandsResponse = boolean;
 
 export interface DeleteMyCommandsParams {
   scope?: BotCommandScope;
   language_code?: string;
 }
 
-export interface DeleteMyCommandsResponse extends boolean {}
+export type DeleteMyCommandsResponse = boolean;
 
 export interface GetMyCommandsParams {
   scope?: BotCommandScope;
@@ -1810,7 +1810,7 @@ export interface SetMyNameParams {
   language_code?: string;
 }
 
-export interface SetMyNameResponse extends boolean {}
+export type SetMyNameResponse = boolean;
 
 export interface GetMyNameParams {
   language_code?: string;
@@ -1823,7 +1823,7 @@ export interface SetMyDescriptionParams {
   language_code?: string;
 }
 
-export interface SetMyDescriptionResponse extends boolean {}
+export type SetMyDescriptionResponse = boolean;
 
 export interface GetMyDescriptionParams {
   language_code?: string;
@@ -1836,7 +1836,7 @@ export interface SetMyShortDescriptionParams {
   language_code?: string;
 }
 
-export interface SetMyShortDescriptionResponse extends boolean {}
+export type SetMyShortDescriptionResponse = boolean;
 
 export interface GetMyShortDescriptionParams {
   language_code?: string;
@@ -1849,7 +1849,7 @@ export interface SetChatMenuButtonParams {
   menu_button?: MenuButton;
 }
 
-export interface SetChatMenuButtonResponse extends boolean {}
+export type SetChatMenuButtonResponse = boolean;
 
 export interface GetChatMenuButtonParams {
   chat_id?: number;
@@ -1862,7 +1862,7 @@ export interface SetMyDefaultAdministratorRightsParams {
   for_channels?: boolean;
 }
 
-export interface SetMyDefaultAdministratorRightsResponse extends boolean {}
+export type SetMyDefaultAdministratorRightsResponse = boolean;
 
 export interface GetMyDefaultAdministratorRightsParams {
   for_channels?: boolean;
@@ -1881,7 +1881,7 @@ export interface EditMessageTextParams {
   reply_markup?: InlineKeyboardMarkup;
 }
 
-export interface EditMessageTextResponse extends Message | boolean {}
+export type EditMessageTextResponse = Message | boolean;
 
 export interface EditMessageCaptionParams {
   chat_id?: number | string;
@@ -1893,7 +1893,7 @@ export interface EditMessageCaptionParams {
   reply_markup?: InlineKeyboardMarkup;
 }
 
-export interface EditMessageCaptionResponse extends Message | boolean {}
+export type EditMessageCaptionResponse = Message | boolean;
 
 export interface EditMessageMediaParams {
   chat_id?: number | string;
@@ -1903,7 +1903,7 @@ export interface EditMessageMediaParams {
   reply_markup?: InlineKeyboardMarkup;
 }
 
-export interface EditMessageMediaResponse extends Message | boolean {}
+export type EditMessageMediaResponse = Message | boolean;
 
 export interface EditMessageReplyMarkupParams {
   chat_id?: number | string;
@@ -1912,7 +1912,7 @@ export interface EditMessageReplyMarkupParams {
   reply_markup?: InlineKeyboardMarkup;
 }
 
-export interface EditMessageReplyMarkupResponse extends Message | boolean {}
+export type EditMessageReplyMarkupResponse = Message | boolean;
 
 export interface StopPollParams {
   chat_id: number | string;
@@ -1927,14 +1927,14 @@ export interface DeleteMessageParams {
   message_id: number;
 }
 
-export interface DeleteMessageResponse extends boolean {}
+export type DeleteMessageResponse = boolean;
 
 export interface DeleteMessagesParams {
   chat_id: number | string;
   message_ids: number[];
 }
 
-export interface DeleteMessagesResponse extends boolean {}
+export type DeleteMessagesResponse = boolean;
 
 export interface SendStickerParams {
   chat_id: number | string;
@@ -1979,7 +1979,7 @@ export interface CreateNewStickerSetParams {
   needs_repainting?: boolean;
 }
 
-export interface CreateNewStickerSetResponse extends boolean {}
+export type CreateNewStickerSetResponse = boolean;
 
 export interface AddStickerToSetParams {
   user_id: number;
@@ -1987,48 +1987,48 @@ export interface AddStickerToSetParams {
   sticker: InputSticker;
 }
 
-export interface AddStickerToSetResponse extends boolean {}
+export type AddStickerToSetResponse = boolean;
 
 export interface SetStickerPositionInSetParams {
   sticker: string;
   position: number;
 }
 
-export interface SetStickerPositionInSetResponse extends boolean {}
+export type SetStickerPositionInSetResponse = boolean;
 
 export interface DeleteStickerFromSetParams {
   sticker: string;
 }
 
-export interface DeleteStickerFromSetResponse extends boolean {}
+export type DeleteStickerFromSetResponse = boolean;
 
 export interface SetStickerEmojiListParams {
   sticker: string;
   emoji_list: string[];
 }
 
-export interface SetStickerEmojiListResponse extends boolean {}
+export type SetStickerEmojiListResponse = boolean;
 
 export interface SetStickerKeywordsParams {
   sticker: string;
   keywords?: string[];
 }
 
-export interface SetStickerKeywordsResponse extends boolean {}
+export type SetStickerKeywordsResponse = boolean;
 
 export interface SetStickerMaskPositionParams {
   sticker: string;
   mask_position?: MaskPosition;
 }
 
-export interface SetStickerMaskPositionResponse extends boolean {}
+export type SetStickerMaskPositionResponse = boolean;
 
 export interface SetStickerSetTitleParams {
   name: string;
   title: string;
 }
 
-export interface SetStickerSetTitleResponse extends boolean {}
+export type SetStickerSetTitleResponse = boolean;
 
 export interface SetStickerSetThumbnailParams {
   name: string;
@@ -2036,20 +2036,20 @@ export interface SetStickerSetThumbnailParams {
   thumbnail?: string;
 }
 
-export interface SetStickerSetThumbnailResponse extends boolean {}
+export type SetStickerSetThumbnailResponse = boolean;
 
 export interface SetCustomEmojiStickerSetThumbnailParams {
   name: string;
   custom_emoji_id?: string;
 }
 
-export interface SetCustomEmojiStickerSetThumbnailResponse extends boolean {}
+export type SetCustomEmojiStickerSetThumbnailResponse = boolean;
 
 export interface DeleteStickerSetParams {
   name: string;
 }
 
-export interface DeleteStickerSetResponse extends boolean {}
+export type DeleteStickerSetResponse = boolean;
 
 export interface AnswerInlineQueryParams {
   inline_query_id: string;
@@ -2060,7 +2060,7 @@ export interface AnswerInlineQueryParams {
   button?: InlineQueryResultsButton;
 }
 
-export interface AnswerInlineQueryResponse extends boolean {}
+export type AnswerInlineQueryResponse = boolean;
 
 export interface InlineQueryResult {
   type: string;
@@ -2449,7 +2449,7 @@ export interface CreateInvoiceLinkParams {
   is_flexible?: boolean;
 }
 
-export interface CreateInvoiceLinkResponse extends string {}
+export type CreateInvoiceLinkResponse = string;
 
 export interface AnswerShippingQueryParams {
   shipping_query_id: string;
@@ -2458,7 +2458,7 @@ export interface AnswerShippingQueryParams {
   error_message?: string;
 }
 
-export interface AnswerShippingQueryResponse extends boolean {}
+export type AnswerShippingQueryResponse = boolean;
 
 export interface AnswerPreCheckoutQueryParams {
   pre_checkout_query_id: string;
@@ -2466,14 +2466,14 @@ export interface AnswerPreCheckoutQueryParams {
   error_message?: string;
 }
 
-export interface AnswerPreCheckoutQueryResponse extends boolean {}
+export type AnswerPreCheckoutQueryResponse = boolean;
 
 export interface SetPassportDataErrorsParams {
   user_id: number;
   errors: PassportElementError[];
 }
 
-export interface SetPassportDataErrorsResponse extends boolean {}
+export type SetPassportDataErrorsResponse = boolean;
 
 export interface PassportElementError {
   source: string;
@@ -2559,7 +2559,7 @@ export interface SetGameScoreParams {
   inline_message_id?: string;
 }
 
-export interface SetGameScoreResponse extends Message | boolean {}
+export type SetGameScoreResponse = Message | boolean;
 
 export interface GetGameHighScoresParams {
   user_id: number;
@@ -2589,13 +2589,13 @@ export interface SetWebhookParams {
   secret_token?: string;
 }
 
-export interface SetWebhookResponse extends boolean {}
+export type SetWebhookResponse = boolean;
 
 export interface DeleteWebhookParams {
   drop_pending_updates?: boolean;
 }
 
-export interface DeleteWebhookResponse extends boolean {}
+export type DeleteWebhookResponse = boolean;
 
 export interface GetWebhookInfoResponse extends WebhookInfo {}
 

@@ -19,7 +19,7 @@ import { Text } from './text'; // Future implementation
 const message = new Text()
   .bold('Hello, ').text(ctx.from.first_name).plain('!') // Chain formatting on one line
   .newline(2) // Add two newlines
-  .italic('This is a bot-express bot.')
+  .italic('This is a bot-machine bot.')
   .newline()
   .link('Visit our website', 'https://example.com');
 

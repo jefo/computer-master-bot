@@ -78,8 +78,7 @@ export class MessageBuilder {
 	addWarning(text: string): MessageBuilder {
 		this.parts.push(`⚠️ ${MessageBuilder.escapeMarkdownV2(text)}`);
 		return this;
-	}ооо! просто золото! давай мы от имени нашего R&D отдела напишем отчет который в последствии прревратим в серию статей или одну статью по тому какие требования         │
-│   предъявляются к ИИ-Агентам кодерам и почему (и всю остальную инфу которую извлечем из отчета). 
+	}
 
 	addInfo(text: string): MessageBuilder {
 		this.parts.push(`ℹ️ ${MessageBuilder.escapeMarkdownV2(text)}`);

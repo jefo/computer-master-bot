@@ -1,12 +1,12 @@
 {
-  "name": "@computer-master/telegram-client",
+  "name": "@bot-machine/telegram-client",
   "version": "1.0.0",
   "description": "A TypeScript HTTP client for the Telegram Bot API built with Bun",
   "main": "dist/index.js",
   "module": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
-    "build": "bun build index.ts --outfile dist/index.js",
+    "build": "rm -rf dist && tsc",
     "dev": "bun run index.ts",
     "test": "bun test",
     "example": "bun run example.ts",
@@ -23,12 +23,15 @@
   "author": "Computer Master",
   "license": "MIT",
   "devDependencies": {
-    "bun-types": "latest"
+    "bun-types": "latest",
+    "typescript": "^5.9.2"
   },
   "peerDependencies": {
     "typescript": "^5.0.0"
   },
   "files": [
-    "dist/**/*"
+    "dist/**/*",
+    "README.md",
+    "LICENSE"
   ]
 }
