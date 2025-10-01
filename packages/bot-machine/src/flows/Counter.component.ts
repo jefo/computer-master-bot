@@ -1,7 +1,7 @@
 
 import { z } from 'zod';
 import { Keyboard } from "../keyboard";
-import { message } from "../text";
+import { format } from "../text";
 import { getCounterQuery } from '../core/counter';
 
 // The component's props are inferred directly from the query's output schema.
@@ -15,7 +15,7 @@ export async function CounterComponent(props: Props) {
     .row()
     .text('✏️ Переименовать', 'rename');
 
-  const msg = message(({ b }) => [
+  const msg = format(({ b }) => [
     b(props.name), ": ", b(String(props.count))
   ]);
 

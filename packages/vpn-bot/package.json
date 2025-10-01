@@ -1,0 +1,16 @@
+{
+  "name": "vpn-bot",
+  "module": "index.ts",
+  "type": "module",
+  "private": true,
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  },
+  "dependencies": {
+    "@bot-machine/telegram-client": "^1.0.0",
+    "@bot-machine/telegram-sdk": "^0.1.1"
+  }
+}

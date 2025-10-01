@@ -47,7 +47,20 @@ export class FlowController {
         const match = text.match(regex);
         if (match) {
           const action = handlers[pattern];
-          ctx.params = match.groups ?? {};
+          // Use groups if available (for named captures in the future), otherwise map positional captures to parameter names
+          if (match.groups) {
+            ctx.params = match.groups;
+          } else {
+            // For positional captures from string patterns like ':action:::id',
+            // map them to their original parameter names by extracting them from the pattern
+            ctx.params = {};
+            const paramNames = this.extractParamNames(pattern);
+            if (paramNames && match.length > 1) {
+              for (let i = 0; i < paramNames.length && i + 1 < match.length; i++) {
+                ctx.params[paramNames[i]] = match[i + 1];
+              }
+            }
+          }
           await this.executeAction(action, ctx);
           return true;
         }
@@ -140,6 +153,17 @@ export class FlowController {
       console.error("Zod validation or query execution error in renderState:", error);
       await ctx.reply("Произошла ошибка при отображении экрана.");
     }
+  }
+
+  /** @internal */
+  private extractParamNames(patternStr: string): string[] {
+    const paramNames: string[] = [];
+    const regex = /:(\w+)/g;
+    let match;
+    while ((match = regex.exec(patternStr)) !== null) {
+      paramNames.push(match[1]);
+    }
+    return paramNames;
   }
 
   /** @internal */

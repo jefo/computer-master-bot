@@ -1,7 +1,7 @@
 
 import { z } from 'zod';
 import { Keyboard } from "../keyboard";
-import { message } from "../text";
+import { format } from "../text";
 import { getCounterQuery } from '../core/counter';
 
 // The component's props are inferred from the query that fetches its data.
@@ -12,7 +12,7 @@ export async function RenameComponent(props: Props) {
   const keyboard = new Keyboard()
     .text('⬅️ Назад', 'back');
 
-  const msg = message(({ b, n }) => [
+  const msg = format(({ b, n }) => [
     "Текущее имя: ", b(props.name),
     n(2),
     "Введите новое имя:"
