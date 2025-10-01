@@ -1,54 +1,58 @@
-import { Router } from "./router";
-import { FlowController } from "./flow";
-import { mainFlow } from "./flows/main.flow";
+
+// The main entry point for the bot application.
+
 import { TelegramClient } from "@computer-master/telegram-client";
-import { SessionManager } from "./session";
+import { Router } from "./router";
+import { session } from "./session";
+import { mainFlow } from "./flows/main.flow";
+import { FlowController } from "./flow";
+import { createClient } from "redis";
+import { RedisSessionStore } from "./session/redis.store";
 
 async function main() {
-	const token = process.env.BOT_TOKEN;
-	if (!token) {
-		console.error("BOT_TOKEN environment variable is not set.");
-		process.exit(1);
-	}
+  // 1. Initialize the Telegram Client
+  // Ensure the BOT_TOKEN environment variable is set.
+  if (!process.env.BOT_TOKEN) {
+    throw new Error("BOT_TOKEN environment variable is not set.");
+  }
+  const client = new TelegramClient(process.env.BOT_TOKEN);
 
-	const client = new TelegramClient(token);
-	const router = new Router();
+  // 2. Initialize the Router
+  const router = new Router();
 
-	// Setup session management. Uses InMemorySessionStore by default.
-	const sessionManager = new SessionManager();
-	router.use(sessionManager.middleware());
+  // 3. Register Middleware
+  // Use Redis for session storage if REDIS_URL is provided, otherwise default to in-memory.
+  if (process.env.REDIS_URL) {
+    console.log("Using Redis for session storage.");
+    const redisClient = createClient({ url: process.env.REDIS_URL });
+    await redisClient.connect();
+    const redisStore = new RedisSessionStore(redisClient);
+    router.use(session({ store: redisStore }));
+  } else {
+    console.log("Using in-memory session storage.");
+    router.use(session());
+  }
 
-	// Create and register the flow controller
-	const mainFlowController = new FlowController(mainFlow, "main");
-	router.addFlow(mainFlowController);
+  // 4. Register Flows
+  // A flow is a stateful, multi-step conversation.
+  const mainFlowController = new FlowController(mainFlow.config, mainFlow.name);
+  router.addFlow(mainFlowController);
 
-	// The /start command now enters the main flow
-	router.onCommand("start", async (ctx) => {
-		await ctx.enterFlow("main", "counter");
-	});
+  // 5. Register Stateless Commands
+  // These are simple, one-off commands.
+  router.onCommand("start", async (ctx) => {
+    // The `enterFlow` method starts a conversation flow.
+    await ctx.enterFlow(mainFlow.name, mainFlow.states.counter);
+  });
 
-	console.log("Bot is starting...");
-	const me = await client.getMe();
-	console.log(`Logged in as ${me.first_name} (@${me.username})`);
+  router.onCommand("help", async (ctx) => {
+    await ctx.reply("This is an example bot.");
+  });
 
-	let offset = 0;
-	while (true) {
-		try {
-			const updates = await client.getUpdates({
-				offset,
-				timeout: 30, // Long polling timeout
-			});
-
-			for (const update of updates) {
-				offset = update.update_id + 1;
-				router.handle(update, client);
-			}
-		} catch (error) {
-			console.error("Error fetching updates:", error);
-			// Avoid spamming on persistent errors
-			await new Promise((resolve) => setTimeout(resolve, 5000));
-		}
-	}
+  // 6. Start the Bot
+  // The `startPolling` method fetches updates from Telegram.
+  console.log("Bot starting...");
+  client.startPolling(router);
 }
 
 main().catch(console.error);

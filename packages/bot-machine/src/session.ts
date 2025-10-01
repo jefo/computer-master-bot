@@ -6,7 +6,7 @@ import type { AppContext, Middleware, ISessionStore } from './types';
  * This is the default store if no other is provided.
  * It is not recommended for production use as it will lose all data on restart.
  */
-export class InMemorySessionStore implements ISessionStore {
+class InMemorySessionStore implements ISessionStore {
   private readonly store = new Map<string, Record<string, any>>();
 
   /** @inheritdoc */
@@ -26,46 +26,49 @@ export class InMemorySessionStore implements ISessionStore {
 }
 
 /**
- * Manages user sessions by connecting the bot to a session store.
+ * Options for configuring the session middleware.
  */
-export class SessionManager {
-  private readonly store: ISessionStore;
+interface SessionOptions {
+  /** An object that implements the `ISessionStore` interface for persisting sessions. Defaults to `InMemorySessionStore`. */
+  store?: ISessionStore;
+}
 
-  /**
-   * Creates a new SessionManager.
-   * @param store An object that implements the `ISessionStore` interface. Defaults to `InMemorySessionStore`.
-   */
-  constructor(store?: ISessionStore) {
-    this.store = store ?? new InMemorySessionStore();
-  }
+/**
+ * Creates a session middleware for the router.
+ * This middleware loads `ctx.session` before handlers are executed
+ * and saves it after they have completed.
+ * @param options Configuration options for the session.
+ */
+export function session(options?: SessionOptions): Middleware {
+  const store = options?.store ?? new InMemorySessionStore();
 
-  /**
-   * Returns the middleware function to be used by the router.
-   * This middleware loads the session into `ctx.session` before handlers are executed
-   * and saves the session after they have completed.
-   */
-  middleware(): Middleware {
-    return async (ctx: AppContext, next: () => Promise<void>) => {
-      const userId = ctx.from?.id;
-      if (!userId) {
-        // No user, no session. Useful for channel posts, etc.
-        ctx.session = {};
-        await next();
-        return;
-      }
-
-      const key = userId.toString();
-      ctx.session = (await this.store.get(key)) ?? {};
-
+  return async (ctx: AppContext, next: () => Promise<void>) => {
+    const userId = ctx.from?.id;
+    if (!userId) {
+      // No user, no session. Useful for channel posts, etc.
+      ctx.session = {};
       await next();
+      return;
+    }
 
-      // Save session after all handlers have run.
-      // If the session object is empty, delete it from the store.
-      if (Object.keys(ctx.session).length === 0) {
-        await this.store.delete(key);
-      } else {
-        await this.store.set(key, ctx.session);
+    const key = userId.toString();
+    const sessionData = await store.get(key);
+    const sessionExists = !!sessionData;
+
+    ctx.session = sessionData ?? {};
+
+    await next();
+
+    // Save or delete session after all handlers have run.
+    const isSessionEmpty = Object.keys(ctx.session).length === 0;
+
+    if (isSessionEmpty) {
+      // Only delete the session if it existed before.
+      if (sessionExists) {
+        await store.delete(key);
       }
-    };
-  }
+    } else {
+      await store.set(key, ctx.session);
+    }
+  };
 }

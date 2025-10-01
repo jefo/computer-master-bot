@@ -1,7 +1,14 @@
+
+import { z } from 'zod';
 import { Keyboard } from "../keyboard";
 import { message } from "../text";
+import { getCounterQuery } from '../core/counter';
 
-export async function RenameComponent(props: { name: string }) {
+// The component's props are inferred from the query that fetches its data.
+// This makes the component robust to changes in the core data schema.
+type Props = z.infer<typeof getCounterQuery.output>;
+
+export async function RenameComponent(props: Props) {
   const keyboard = new Keyboard()
     .text('⬅️ Назад', 'back');
 

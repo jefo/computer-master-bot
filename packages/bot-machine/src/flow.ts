@@ -1,5 +1,5 @@
 
-import type { AppContext, FlowConfig, ActionHandler } from './types';
+import type { AppContext, FlowConfig, ActionHandler, FlowDefinition } from './types';
 import { pathStringToRegex } from './utils';
 
 /**
@@ -36,7 +36,7 @@ export class FlowController {
     const currentState = this.config[currentStateName];
 
     if (!currentState) {
-      console.error(`State '${currentStateName}' not found in flow '${this.name}'`);
+      console.error(`State '${currentStateName}' not found in flow '${this.name}'`)
       this.exitFlow(ctx);
       return false;
     }
@@ -150,10 +150,23 @@ export class FlowController {
 }
 
 /**
- * A factory function for creating a `FlowConfig` object with type inference.
- * @param config The flow configuration object.
- * @returns The same configuration object.
+ * A factory function for creating a type-safe `FlowDefinition`.
+ * @param name The unique name for this flow.
+ * @param config The flow configuration object, mapping state names to state definitions.
+ * @returns A `FlowDefinition` object with the config and a type-safe `states` map.
  */
-export function createFlow(config: FlowConfig): FlowConfig {
-  return config;
+export function createFlow<TConfig extends FlowConfig>(
+  name: string,
+  config: TConfig
+): FlowDefinition<TConfig> {
+  const states = Object.keys(config).reduce((acc, key) => {
+    acc[key as keyof TConfig] = key as keyof TConfig;
+    return acc;
+  }, {} as { [K in keyof TConfig]: K });
+
+  return {
+    name,
+    config,
+    states,
+  };
 }

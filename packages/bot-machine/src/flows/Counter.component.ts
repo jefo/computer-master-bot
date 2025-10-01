@@ -1,8 +1,14 @@
 
+import { z } from 'zod';
 import { Keyboard } from "../keyboard";
 import { message } from "../text";
+import { getCounterQuery } from '../core/counter';
 
-export async function CounterComponent(props: { count: number, name: string }) {
+// The component's props are inferred directly from the query's output schema.
+// This ensures the UI is always in sync with the data contract.
+type Props = z.infer<typeof getCounterQuery.output>;
+
+export async function CounterComponent(props: Props) {
   const keyboard = new Keyboard()
     .text('➖', 'decrement')
     .text('➕', 'increment')

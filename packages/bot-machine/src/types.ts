@@ -170,6 +170,15 @@ export interface FlowState {
  */
 export type FlowConfig = Record<string, FlowState>;
 
+/**
+ * A type-safe definition of a flow, returned by the `createFlow` factory.
+ */
+export interface FlowDefinition<TConfig extends FlowConfig> {
+  name: string;
+  config: TConfig;
+  states: { [K in keyof TConfig]: K };
+}
+
 //================================================================================
 // Session Management
 //================================================================================
