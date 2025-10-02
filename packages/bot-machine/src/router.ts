@@ -104,7 +104,7 @@ export class Router {
 		for (let i = this.middlewares.length - 1; i >= 0; i--) {
 			const middleware = this.middlewares[i];
 			const currentNextFn = nextFn; // Capture current nextFn
-			nextFn = () => middleware(ctx, currentNextFn);
+			nextFn = () => middleware!(ctx, currentNextFn);
 		}
 
 		try {
@@ -159,7 +159,7 @@ export class Router {
 		const regex = /:(\w+)/g;
 		let match;
 		while ((match = regex.exec(patternStr)) !== null) {
-			paramNames.push(match[1]);
+			paramNames.push(match[1] || "");
 		}
 		return paramNames;
 	}
@@ -186,7 +186,10 @@ export class Router {
 							i < route.paramNames.length && i + 1 < match.length;
 							i++
 						) {
-							ctx.params[route.paramNames[i]] = match[i + 1];
+							const paramName = route.paramNames[i];
+							if (paramName) {
+								ctx.params[paramName] = match[i + 1] || "";
+							}
 						}
 					}
 				}
