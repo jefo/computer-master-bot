@@ -25,6 +25,6 @@
   },
   "dependencies": {
     "@bot-machine/telegram-client": "^1.0.0",
-    "@bot-machine/telegram-sdk": "^0.1.1"
+    "@bot-machine/telegram-sdk": "^0.1.3"
   }
 }

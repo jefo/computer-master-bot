@@ -1,7 +1,10 @@
 import type { TelegramClient } from "packages/telegram-client";
 import type { InlineKeyboardMarkup } from "packages/telegram-client/telegram-types";
 import { MessageBuilder } from "../infra/message-builder";
-import { getConversationState, setConversationState } from "src/infra/conversation-state";
+import {
+	getConversationState,
+	setConversationState,
+} from "src/infra/conversation-state";
 
 // Mock data for eSIM plans - in a real app, this would come from an API
 const mockESimPlans = [
@@ -14,10 +17,7 @@ const mockESimPlans = [
 		coverage: ["DE", "FR", "IT", "ES", "NL"],
 		icon: "🇪",
 		popular: false,
-		features: [
-			"Мгновенная активация",
-			"Поддержка 4G",
-		],
+		features: ["Мгновенная активация", "Поддержка 4G"],
 	},
 	{
 		id: "eu_7days",
@@ -116,10 +116,7 @@ const mockESimPlans = [
 		coverage: ["TH", "VN", "ID", "MY", "SG", "JP", "KR"],
 		icon: "🌏",
 		popular: false,
-		features: [
-			"Мгновенная активация",
-			"Поддержка 4G",
-		],
+		features: ["Мгновенная активация", "Поддержка 4G"],
 	},
 	{
 		id: "asia_20days",
@@ -419,7 +416,7 @@ export const showCountryESimOptions = async (
 	// Get current plan index from conversation state, default to 0
 	const currentState = getConversationState(chatId);
 	let currentPlanIndex = currentState?.planIndex ?? 0;
-	
+
 	// If a new index is provided via navigation, use that
 	if (newIndex !== undefined) {
 		// Handle navigation based on the new index
@@ -434,7 +431,7 @@ export const showCountryESimOptions = async (
 			currentPlanIndex = newIndex;
 		}
 	}
-	
+
 	// Ensure the index is within bounds
 	if (currentPlanIndex >= plans.length) {
 		currentPlanIndex = 0;
@@ -444,7 +441,7 @@ export const showCountryESimOptions = async (
 
 	// Get the current plan to display
 	const currentPlan = plans[currentPlanIndex];
-	
+
 	const text = new MessageBuilder()
 		.addTitle(`${country.flag} ${country.name}`, "")
 		.newLine()
@@ -474,18 +471,28 @@ export const showCountryESimOptions = async (
 	const keyboard: InlineKeyboardMarkup = {
 		inline_keyboard: [
 			[
-				{ text: "⬅️ Предыдущий", callback_data: `prev_plan_${countryId}_${currentPlanIndex}` },
-				{ text: "➡️ Следующий", callback_data: `next_plan_${countryId}_${currentPlanIndex}` },
+				{
+					text: "⬅ Предыдущий",
+					callback_data: `prev_plan_${countryId}_${currentPlanIndex}`,
+				},
+				{
+					text: "➡ Следующий",
+					callback_data: `next_plan_${countryId}_${currentPlanIndex}`,
+				},
 			],
 			[
-				{ text: "➕ Сравнить", callback_data: `add_to_compare_${currentPlan.id}` },
+				{
+					text: "➕ Сравнить",
+					callback_data: `add_to_compare_${currentPlan.id}`,
+				},
 			],
 			[
-				{ text: `💳 Купить за ${currentPlan.price}`, callback_data: `select_plan_${currentPlan.id}` },
+				{
+					text: `💳 Купить за ${currentPlan.price}`,
+					callback_data: `select_plan_${currentPlan.id}`,
+				},
 			],
-			[
-				{ text: "⭐ Популярные планы", callback_data: "show_popular_plans" },
-			],
+			[{ text: "⭐ Популярные планы", callback_data: "show_popular_plans" }],
 			[
 				{ text: "Другой регион", callback_data: "show_esim_catalog" },
 				{ text: "⬅ Назад", callback_data: "show_esim_catalog" },
@@ -878,15 +885,15 @@ export const addToComparison = async (
 ) => {
 	const currentState = getConversationState(chatId);
 	const plan = mockESimPlans.find((p) => p.id === planId);
-	
+
 	if (!plan) {
 		// If plan not found, return to catalog
 		return showESimCatalog(client, chatId);
 	}
-	
+
 	// Get current comparison plans or initialize empty array
 	const currentComparisonPlans = currentState?.comparisonPlans || [];
-	
+
 	// Check if plan is already in comparison list
 	if (!currentComparisonPlans.includes(planId)) {
 		// Add plan to comparison (max 2 plans for now)
@@ -897,13 +904,13 @@ export const addToComparison = async (
 			currentComparisonPlans[1] = planId;
 		}
 	}
-	
+
 	// Update conversation state
 	setConversationState(chatId, {
 		...currentState,
 		comparisonPlans: currentComparisonPlans,
 	});
-	
+
 	// Show notification about adding to comparison
 	const text = new MessageBuilder()
 		.addTitle("План добавлен к сравнению", "✅")
@@ -912,30 +919,32 @@ export const addToComparison = async (
 		.newLine(2)
 		.addInfo(`Всего планов в сравнении: ${currentComparisonPlans.length}`)
 		.newLine(2);
-	
+
 	if (currentComparisonPlans.length === 2) {
-		text.addSuccess("Готово! У вас 2 плана для сравнения.")
-			.newLine(2);
+		text.addSuccess("Готово! У вас 2 плана для сравнения.").newLine(2);
 	} else {
-		text.addInfo("Выберите еще один план для сравнения.")
-			.newLine(2);
+		text.addInfo("Выберите еще один план для сравнения.").newLine(2);
 	}
-	
+
 	const keyboard: InlineKeyboardMarkup = {
 		inline_keyboard: [
+			[{ text: "📋 Сравнить планы", callback_data: "start_comparison" }],
 			[
-				{ text: "📋 Сравнить планы", callback_data: "start_comparison" },
-			],
-			[
-				{ text: "🔄 Выбрать другой", callback_data: `select_country_${plan.country.toLowerCase()}` },
+				{
+					text: "🔄 Выбрать другой",
+					callback_data: `select_country_${plan.country.toLowerCase()}`,
+				},
 			],
 			[
 				{ text: "❌ Очистить", callback_data: "clear_comparison" },
-				{ text: "⬅ Назад", callback_data: `select_country_${plan.country.toLowerCase()}` },
+				{
+					text: "⬅ Назад",
+					callback_data: `select_country_${plan.country.toLowerCase()}`,
+				},
 			],
 		],
 	};
-	
+
 	return sendOrEdit(client, chatId, text.build(), keyboard);
 };
 
@@ -945,34 +954,28 @@ export const clearComparison = async (
 	chatId: number,
 ) => {
 	const currentState = getConversationState(chatId);
-	
+
 	// Update conversation state to clear comparison plans
 	setConversationState(chatId, {
 		...currentState,
 		comparisonPlans: [],
 	});
-	
+
 	const text = new MessageBuilder()
 		.addTitle("Список сравнения очищен", "🗑")
 		.newLine()
 		.addInfo("Все планы удалены из списка сравнения.")
 		.newLine(2)
 		.addInfo("Теперь вы можете снова выбрать планы для сравнения.");
-	
+
 	const keyboard: InlineKeyboardMarkup = {
 		inline_keyboard: [
-			[
-				{ text: "🌍 Каталог eSIM", callback_data: "show_esim_catalog" },
-			],
-			[
-				{ text: "⭐ Популярные планы", callback_data: "show_popular_plans" },
-			],
-			[
-				{ text: "⬅ Назад", callback_data: "back_to_main" },
-			],
+			[{ text: "🌍 Каталог eSIM", callback_data: "show_esim_catalog" }],
+			[{ text: "⭐ Популярные планы", callback_data: "show_popular_plans" }],
+			[{ text: "⬅ Назад", callback_data: "back_to_main" }],
 		],
 	};
-	
+
 	return sendOrEdit(client, chatId, text.build(), keyboard);
 };
 
@@ -983,41 +986,39 @@ export const showComparisonView = async (
 ) => {
 	const currentState = getConversationState(chatId);
 	const comparisonPlans = currentState?.comparisonPlans || [];
-	
+
 	if (comparisonPlans.length < 2) {
 		// If not enough plans for comparison, redirect to add more
 		const text = new MessageBuilder()
-			.addTitle("Недостаточно планов для сравнения", "⚠️")
+			.addTitle("Недостаточно планов для сравнения", "!")
 			.newLine()
 			.addInfo("Для сравнения необходимо выбрать 2 тарифных плана.")
 			.newLine(2)
 			.addInfo(`Сейчас в списке: ${comparisonPlans.length} план(а)`)
 			.newLine(2);
-		
+
 		const keyboard: InlineKeyboardMarkup = {
 			inline_keyboard: [
-				[
-					{ text: "➕ Добавить план", callback_data: "show_esim_catalog" },
-				],
+				[{ text: "➕ Добавить план", callback_data: "show_esim_catalog" }],
 				[
 					{ text: "❌ Очистить список", callback_data: "clear_comparison" },
 					{ text: "⬅ Назад", callback_data: "back_to_main" },
 				],
 			],
 		};
-		
+
 		return sendOrEdit(client, chatId, text.build(), keyboard);
 	}
-	
+
 	// Get both plans for comparison
 	const firstPlan = mockESimPlans.find((p) => p.id === comparisonPlans[0]);
 	const secondPlan = mockESimPlans.find((p) => p.id === comparisonPlans[1]);
-	
+
 	if (!firstPlan || !secondPlan) {
 		// If plans not found, redirect to catalog
 		return showESimCatalog(client, chatId);
 	}
-	
+
 	const text = new MessageBuilder()
 		.addTitle("Сравнение тарифных планов", "📊")
 		.newLine(2)
@@ -1031,7 +1032,7 @@ export const showComparisonView = async (
 		.newLine()
 		.addListItem(`Покрытие: ${firstPlan.coverage.join(", ")}`, "📡")
 		.newLine();
-	
+
 	// Add special features for first plan
 	if (firstPlan.features && firstPlan.features.length > 0) {
 		text.addListItem(`Особенности:`, "✨").newLine();
@@ -1039,8 +1040,9 @@ export const showComparisonView = async (
 			text.addListItem(`${feature}`, "•").newLine();
 		});
 	}
-	
-	text.addSeparator()
+
+	text
+		.addSeparator()
 		.newLine()
 		.addSectionTitle(`${secondPlan.icon} ${secondPlan.country}`, "")
 		.newLine()
@@ -1052,7 +1054,7 @@ export const showComparisonView = async (
 		.newLine()
 		.addListItem(`Покрытие: ${secondPlan.coverage.join(", ")}`, "📡")
 		.newLine();
-	
+
 	// Add special features for second plan
 	if (secondPlan.features && secondPlan.features.length > 0) {
 		text.addListItem(`Особенности:`, "✨").newLine();
@@ -1060,28 +1062,34 @@ export const showComparisonView = async (
 			text.addListItem(`${feature}`, "•").newLine();
 		});
 	}
-	
-	text.newLine(2)
-		.addInfo("Сравните параметры планов и выберите наиболее подходящий для ваших нужд.");
-	
+
+	text
+		.newLine(2)
+		.addInfo(
+			"Сравните параметры планов и выберите наиболее подходящий для ваших нужд.",
+		);
+
 	const keyboard: InlineKeyboardMarkup = {
 		inline_keyboard: [
 			[
-				{ text: `💳 Заказать ${firstPlan.description}`, callback_data: `select_plan_${firstPlan.id}` },
+				{
+					text: `💳 Заказать ${firstPlan.description}`,
+					callback_data: `select_plan_${firstPlan.id}`,
+				},
 			],
 			[
-				{ text: `💳 Заказать ${secondPlan.description}`, callback_data: `select_plan_${secondPlan.id}` },
+				{
+					text: `💳 Заказать ${secondPlan.description}`,
+					callback_data: `select_plan_${secondPlan.id}`,
+				},
 			],
 			[
 				{ text: "🔄 Заменить план", callback_data: "show_esim_catalog" },
 				{ text: "❌ Очистить", callback_data: "clear_comparison" },
 			],
-			[
-				{ text: "⬅ Назад", callback_data: "back_to_main" },
-			],
+			[{ text: "⬅ Назад", callback_data: "back_to_main" }],
 		],
 	};
-	
+
 	return sendOrEdit(client, chatId, text.build(), keyboard);
-};
 };
