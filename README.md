@@ -9,6 +9,8 @@
 
 **[Открыть case study →](https://jefo.github.io/computer-master-bot/)**
 
+<img src="docs/screens/computer-master-bot/01.png" alt="Главное меню Computer Master Bot" width="360" />
+
 ---
 
 ## Что это
