@@ -3,7 +3,7 @@
 **Telegram-бот для компьютерного мастера: заявки, прайс и запись на услуги.**
 
 [![Bun](https://img.shields.io/badge/Bun-1.2%2B-000000?logo=bun&logoColor=white)](#запуск)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.x-3178C6?logo=typescript&logoColor=white)](#стек)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.x-3178C6?logo=typescript&logoColor=white)](#как-это-работает)
 [![Telegram Bot API](https://img.shields.io/badge/Telegram-Bot%20API-26A5E4?logo=telegram&logoColor=white)](#как-это-работает)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
