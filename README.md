@@ -7,6 +7,8 @@
 [![Telegram Bot API](https://img.shields.io/badge/Telegram-Bot%20API-26A5E4?logo=telegram&logoColor=white)](#как-это-работает)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
+**[Открыть case study →](https://jefo.github.io/computer-master-bot/)**
+
 ---
 
 ## Что это
